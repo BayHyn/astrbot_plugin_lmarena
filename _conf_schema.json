@@ -1,26 +1,37 @@
 {
+    "server": {
+        "description": "插件内部服务器配置",
+        "hint": "若是想让其他客户端远程访问，注意要有公网并打开相应端口",
+        "type": "object",
+        "items": {
+            "host": {
+                "description": "服务器主机",
+                "type": "string",
+                "default": "127.0.0.1"
+            },
+            "port": {
+                "description": "服务器端口",
+                "type": "int",
+                "default": 5102
+            },
+            "api_key": {
+                "description": "服务器 API Key",
+                "hint": "可以为服务器设置一个API Key，用于访问你的服务器时验证身份，不填则无需验证直接访问",
+                "type": "string"
+            }
+        }
+    },
+    "base_url": {
+        "description": "Lmarena请求地址",
+        "hint": "如果你想用远程服务器来对Lmarena发起访问,，那么请填写远程服务器地址, 默认使用本机 http://127.0.0.1:5102",
+        "type": "string",
+        "default": "http://127.0.0.1:5102"
+    },
     "prefix": {
         "description": "启用触发前缀",
         "hint": "启用后需要前缀或者@bot来触发命令",
         "type": "bool",
         "default": true
-    },
-    "base_url": {
-        "description": "生图服务器URL",
-        "type": "string",
-        "default": "http://127.0.0.1:5102"
-    },
-    "model": {
-        "description": "生图模型",
-        "hint": "建议默认nano-banana",
-        "type": "string",
-        "default": "nano-banana"
-    },
-    "save_image": {
-        "description": "保存生成的图片",
-        "hint": "保存目录为插件数据目录",
-        "type": "bool",
-        "default": false
     },
     "retries": {
         "description": "生图失败重试次数",
@@ -30,8 +41,206 @@
     },
     "prompt": {
         "description": "生图触发词与提示词",
-        "hint": "影响手办化的效果，请前往data/plugins/astrbot_plugin_lmarena/prompt.py更改, 格式为 触发词:提示词",
+        "hint": "此配置无效，提示词仅供参考，想自定义就前往data/plugins/astrbot_plugin_lmarena/prompt.py更改, 格式为 触发词:提示词",
         "type": "string",
-        "default": "请前往data/plugins/astrbot_plugin_lmarena/prompt.py更改"
+        "default": "Use the nano-banana model to create a 1/7 scale commercialized figure of thecharacter in the illustration, in a realistic styie and environment.Place the figure on a computer desk, using a circular transparent acrylic basewithout any text.On the computer screen, display the ZBrush modeling process of the figure.Next to the computer screen, place a BANDAl-style toy packaging box printedwith the original artwork."
+    },
+    "save_image": {
+        "description": "保存生成的图片",
+        "hint": "保存目录: data/plugin_data/astrbot_plugin_lmarena",
+        "type": "bool",
+        "default": true
+    },
+    "chat_mode": {
+        "description": "对话模式",
+        "hint": "切换时要重载插件才生效",
+        "type": "string",
+        "options": [
+            "direct_chat",
+            "battle"
+        ],
+        "default": "direct_chat"
+    },
+    "battle_target": {
+        "description": "在 Battle 模式下，要更新的目标",
+        "hint": "切换时要重载插件才生效",
+        "type": "string",
+        "options": [
+            "A",
+            "B"
+        ],
+        "default": "A"
+    },
+    "tavern_mode_enabled": {
+        "description": "酒馆模式(暂时是无效配置)",
+        "hint": "此模式专为需要完整历史记录注入的场景设计（如酒馆AI、SillyTavern等）。",
+        "type": "bool",
+        "default": false,
+        "invisible": true
+    },
+    "stream_response_timeout_seconds": {
+        "description": "流式响应超时",
+        "hint": "服务器等待来自浏览器的下一个数据块的最长时间。非流式也使用此值。\n如果您的网络连接较慢或模型响应时间很长，可以适当增加此值。",
+        "type": "int",
+        "default": 360
+    },
+    "session_id": {
+        "description": "当前 LMArena 页面的会话 ID",
+        "hint": "通过运行 id_updater.py 可以自动更新",
+        "type": "string",
+        "default": "7f37877d-84d3-4184-96f0-bdc8e5732d2c",
+        "invisible": true
+    },
+    "message_id": {
+        "description": "当前会话的最后一条消息 ID",
+        "hint": "通过运行 id_updater.py 可以自动更新",
+        "type": "string",
+        "default": "cab106ab-58ce-4432-a513-ea84f50dac3c",
+        "invisible": true
+    },
+    "model_names": {
+        "description": "模型名称列表",
+        "type": "list",
+        "invisible": true
+    },
+    "model": {
+        "description": "生图模型",
+        "hint": "建议默认nano-banana",
+        "type": "string",
+        "default": "gemini-2.5-flash-image-preview (nano-banana)",
+        "options": [
+            "gpt-5-high",
+            "gemini-2.5-flash-image-preview (nano-banana)",
+            "gpt-5-chat",
+            "imagen-4.0-generate-preview-06-06",
+            "flux-1-kontext-dev",
+            "claude-opus-4-20250514",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "o3-2025-04-16",
+            "chatgpt-4o-latest-20250326",
+            "catalina",
+            "command-a-03-2025",
+            "gpt-4.1-mini-2025-04-14",
+            "amazon.nova-pro-v1:0",
+            "o3-mini",
+            "grok-3-mini-beta",
+            "phantom-0821-1",
+            "o4-mini-2025-04-16",
+            "gemini-2.5-flash-lite-preview-06-17-thinking",
+            "amazon-nova-experimental-chat-05-14",
+            "claude-3-7-sonnet-20250219-thinking-32k",
+            "claude-3-5-haiku-20241022",
+            "mistral-medium-2505",
+            "imagen-3.0-generate-002",
+            "deepseek-v3-0324",
+            "velocilux",
+            "magistral-medium-2506",
+            "ideogram-v2",
+            "photon",
+            "llama-4-maverick-17b-128e-instruct",
+            "qwen3-30b-a3b",
+            "stephen-v2",
+            "qwen3-235b-a22b",
+            "llama-3.3-70b-instruct",
+            "cogitolux",
+            "claude-sonnet-4-20250514",
+            "potato",
+            "claude-3-7-sonnet-20250219",
+            "minimax-m1",
+            "dall-e-3",
+            "recraft-v3",
+            "qwen3-30b-a3b-instruct-2507",
+            "claude-sonnet-4-20250514-thinking-32k",
+            "anonymous-bot-0514",
+            "qwen3-235b-a22b-no-thinking",
+            "gemma-3n-e4b-it",
+            "flux-1.1-pro",
+            "claude-opus-4-20250514-thinking-16k",
+            "stephen-vision-csfix",
+            "mistral-small-2506",
+            "ideogram-v3-quality",
+            "grok-3-mini-high",
+            "grok-4-0709",
+            "ppl-sonar-reasoning-pro-high",
+            "seedream-3",
+            "qwen-max-2025-08-15",
+            "claude-opus-4-search",
+            "gemini-2.5-pro-grounding",
+            "glm-4.5",
+            "o3-search",
+            "ppl-sonar-pro-high",
+            "claude-opus-4-1-20250805",
+            "Bailing-Lite-250220",
+            "gemini-2.5-pro-grounding-exp",
+            "gpt-oss-20b",
+            "qwen-vl-max-2025-08-13",
+            "veo3",
+            "veo3-fast",
+            "veo2",
+            "kimi-k2-0711-preview",
+            "qwen3-235b-a22b-instruct-2507",
+            "ray2",
+            "gpt-oss-120b",
+            "lucid-origin",
+            "gpt-image-1",
+            "step-3",
+            "qwen3-coder-480b-a35b-instruct",
+            "imagen-4.0-ultra-generate-preview-06-06",
+            "veo3-audio",
+            "glm-4.5-air",
+            "nightride-on",
+            "EB45-vision",
+            "nightride-on-v2",
+            "grok-4-search",
+            "mistral-medium-2508",
+            "qwen3-235b-a22b-thinking-2507",
+            "gemini-2.0-flash-preview-image-generation",
+            "hailuo-02-standard",
+            "seedance-v1-pro",
+            "not-a-new-model",
+            "lmarena-internal-test-only",
+            "diffbot-small-xl",
+            "spuddle",
+            "flux-1-kontext-pro",
+            "deepseek-v3.1",
+            "qwen-image-prompt-extend",
+            "pika-v2.2",
+            "flux-1-kontext-max",
+            "claude-opus-4-1-20250805-thinking-16k",
+            "EB45-turbo",
+            "veo3-fast-audio",
+            "deepseek-v3.1-thinking",
+            "gpt-5-mini-high",
+            "glm-4.5v",
+            "hailuo-02-pro",
+            "kling-v2.1-master",
+            "seedance-v1-lite",
+            "kling-v2.1-standard",
+            "sora",
+            "claude-opus-4-1-search",
+            "gpt-5-nano-high",
+            "qwen-image-edit",
+            "gpt-5-search",
+            "hunyuan-turbos-20250416",
+            "mai-1-preview",
+            "hailuo-02-fast",
+            "nano-banana",
+            "runway-gen4-turbo",
+            "seededit-3.0",
+            "mochi-v1",
+            "hidream-e1.1",
+            "wan-v2.2-a14b",
+            "gemini-2.0-flash-001",
+            "claude-3-5-sonnet-20241022",
+            "grok-3-preview-02-24",
+            "llama-4-scout-17b-16e-instruct",
+            "phantom-0822-1",
+            "llama-4-maverick-03-26-experimental",
+            "qwq-32b",
+            "mistral-small-3.1-24b-instruct-2503",
+            "gemma-3-27b-it",
+            "gpt-4.1-2025-04-14"
+        ]
     }
 }

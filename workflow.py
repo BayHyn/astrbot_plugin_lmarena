@@ -1,33 +1,102 @@
 import asyncio
-import io
 import re
 import base64
 import random
 from pathlib import Path
 from typing import Optional
 import aiohttp
-from PIL import Image
 from astrbot.api import logger
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 import astrbot.core.message.components as Comp
+import io
+from PIL import Image
 
 
-class ImageWorkflow:
+
+def extract_first_frame(raw: bytes) -> bytes:
+    """把 GIF 的第一帧抽出来，返回 PNG/JPEG 字节流"""
+    img_io = io.BytesIO(raw)
+    img = Image.open(img_io)
+    if img.format != "GIF":
+        return raw  # 不是 GIF，原样返回
+    first_frame = img.convert("RGBA")
+    out_io = io.BytesIO()
+    first_frame.save(out_io, format="PNG")
+    return out_io.getvalue()
+
+
+async def compress_image(image_bytes: bytes, max_bytes: int) -> bytes:
     """
-    一个把「下载 / 压缩 / 获取头像 / 生图」串在一起的工具类
+    线程池里压缩静态图片到指定大小以内，GIF 不处理
     """
+    loop = asyncio.get_running_loop()
 
-    def __init__(self, base_url: str, model: str):
+    def _inner(image_bytes: bytes, max_bytes: int) -> bytes:
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+
+            # GIF 不处理
+            if img.format == "GIF":
+                return image_bytes
+
+            if len(image_bytes) <= max_bytes:
+                return image_bytes
+
+            # 2) 先把长边一次性缩到 1024 以下，质量先压到 70
+            img.thumbnail((1024, 1024), Image.LANCZOS)  # type: ignore
+            resampled = io.BytesIO()
+            img.save(resampled, format=img.format, quality=70, optimize=True)
+            resampled.seek(0)
+            if resampled.tell() <= max_bytes:
+                return resampled.getvalue()
+
+            # 3) 还不够小，再进入原有循环微调
+            quality, scale = 50, 0.6
+            resample = Image.LANCZOS  # type: ignore
+
+            while True:
+                resampled.seek(0)
+                resampled.truncate(0)
+
+                if scale < 1:
+                    w, h = img.size
+                    tmp = img.resize((int(w * scale), int(h * scale)), resample)
+                else:
+                    tmp = img
+
+                tmp.save(resampled, format=img.format, quality=quality, optimize=True)
+
+                if resampled.tell() <= max_bytes or (quality <= 5 and scale <= 0.2):
+                    break
+
+                if quality > 5:
+                    quality -= 5
+                else:
+                    scale *= 0.9
+
+            return resampled.getvalue()
+
+        except Exception as e:
+            raise ValueError(f"图片压缩失败: {e}")
+
+    return await loop.run_in_executor(None, _inner, image_bytes, max_bytes)
+
+
+
+
+class Workflow:
+    """
+    工具类
+    """
+    headers = {"Content-Type": "application/json"}
+
+    def __init__(self, base_url: str):
         """
         :param base_url: API 的 base url
         :param model: 模型名称
         """
         self.base_url = base_url
         self.session = aiohttp.ClientSession()
-        self.current_model = model
-
-    async def set_model(self, model: str):
-        self.current_model = model
 
     async def _download_image(self, url: str, http: bool = True) -> bytes | None:
         """下载图片"""
@@ -55,99 +124,22 @@ class ImageWorkflow:
             logger.error(f"下载头像失败: {e}")
             return None
 
-    def _extract_first_frame(self, raw: bytes) -> bytes:
-        """把 GIF 的第一帧抽出来，返回 PNG/JPEG 字节流"""
-        img_io = io.BytesIO(raw)
-        img = Image.open(img_io)
-        if img.format != "GIF":
-            return raw  # 不是 GIF，原样返回
-        logger.info("检测到GIF, 将抽取 GIF 的第一帧来生图")
-        first_frame = img.convert("RGBA")
-        out_io = io.BytesIO()
-        first_frame.save(out_io, format="PNG")
-        return out_io.getvalue()
-
-    async def _compress_image(self, image_bytes: bytes, max_bytes: int) -> bytes:
-        """
-        线程池里压缩静态图片到指定大小以内，GIF 不处理
-        """
-        loop = asyncio.get_running_loop()
-
-        def _inner(image_bytes: bytes, max_bytes: int) -> bytes:
-            try:
-                img = Image.open(io.BytesIO(image_bytes))
-
-                # GIF 不处理
-                if img.format == "GIF":
-                    return image_bytes
-
-                if len(image_bytes) <= max_bytes:
-                    return image_bytes
-
-                # 2) 先把长边一次性缩到 1024 以下，质量先压到 70
-                img.thumbnail((1024, 1024), Image.LANCZOS)  # type: ignore
-                resampled = io.BytesIO()
-                img.save(resampled, format=img.format, quality=70, optimize=True)
-                resampled.seek(0)
-                if resampled.tell() <= max_bytes:
-                    return resampled.getvalue()
-
-                # 3) 还不够小，再进入原有循环微调
-                quality, scale = 50, 0.6
-                resample = Image.LANCZOS  # type: ignore
-
-                while True:
-                    resampled.seek(0)
-                    resampled.truncate(0)
-
-                    if scale < 1:
-                        w, h = img.size
-                        tmp = img.resize((int(w * scale), int(h * scale)), resample)
-                    else:
-                        tmp = img
-
-                    tmp.save(
-                        resampled, format=img.format, quality=quality, optimize=True
-                    )
-
-                    if resampled.tell() <= max_bytes or (quality <= 5 and scale <= 0.2):
-                        break
-
-                    if quality > 5:
-                        quality -= 5
-                    else:
-                        scale *= 0.9
-
-                return resampled.getvalue()
-
-            except Exception as e:
-                raise ValueError(f"图片压缩失败: {e}")
-
-        return await loop.run_in_executor(None, _inner, image_bytes, max_bytes)
-
     async def _load_bytes(self, src: str) -> bytes | None:
         """统一把 src 转成 bytes"""
         raw: Optional[bytes] = None
-
         # 1. 本地文件
         if Path(src).is_file():
             raw = Path(src).read_bytes()
-
         # 2. URL
         elif src.startswith("http"):
             raw = await self._download_image(src)
-
         # 3. Base64（直接返回）
         elif src.startswith("base64://"):
             return base64.b64decode(src[9:])
-
         if not raw:
             return None
-
         # 抽 GIF 第一帧
-        raw = self._extract_first_frame(raw)
-
-        return raw
+        return extract_first_frame(raw)
 
     async def get_first_image(self, event: AstrMessageEvent) -> bytes | None:
         """
@@ -192,76 +184,76 @@ class ImageWorkflow:
         # 兜底：发消息者自己的头像
         return await self._get_avatar(event.get_sender_id())
 
-
-    async def get_llm_response(
-        self, text: str, image: bytes | None = None, retries: int = 3
+    async def fetch_content(
+        self, image: bytes | None, text: str, model: str, retries: int = 3
     ) -> bytes | str | None:
         """
-        向LLM发出请求，获取内容
+        发送「手办化」请求并返回图片 bytes；
+        HTTP 非 200 时重试 retries 次，最后一次仍失败则返回错误字符串。
         """
+        text = "手办化这张图片：https://multimedia.nt.qq.com.cn/download?appid=1407&fileid=EhQmoi2ugwnEIEPKcf1t-1S5S55LRhjL6Acg_woowf___cmyjwMyBHByb2RQgL2jAVoQXQwDMudOqNi6UdNbb4rJinoCxPw&rkey=CAQSML9V4mbYusRY2lWhx2vcrEWJD9HD6L0vxH60F118rb4vKJeEN5FABQGXB3ucwP8YFA"
         content: list[dict] = [{"type": "text", "text": text}]
         if image:
-            compressed_img = await self._compress_image(image, 3_500_000)
-            img_b64 = base64.b64encode(compressed_img).decode()
+            compressed_img = await compress_image(image, 3_500_000)
+            img = f"data:image/jpeg;base64,{base64.b64encode(compressed_img).decode()}"
             content.append(
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
+                    "image_url": {"url": img},
                 }
             )
-
+        data = {
+            "model": model,
+            "messages": [{"role": "user", "content": content}],
+            "n": 1,
+        }
         url = f"{self.base_url}/v1/chat/completions"
-
-        data = {"model": self.current_model, "messages": [{"role": "user", "content": content}], "n": 1}
-        headers = {"Content-Type": "application/json"}
-
         error_msg = None  # 记录最后一次的错误信息
         for attempt in range(retries + 1):
-            logger.info(f"请求{self.current_model}第{attempt + 1}次: {text[:50]}...")
+            logger.info(f"请求生图(第 {attempt + 1} 次): {text[:50]}...")
             try:
-                async with self.session.post(url, headers=headers, json=data) as resp:
+                async with self.session.post(url, headers=self.headers, json=data) as resp:
                     result = await resp.json()
-                    logger.debug(result)
                     if resp.status != 200:
-                        error_msg = result.get("error", {}).get("message") or str(result)
-                        raise ValueError(error_msg)
+                        error_msg = result.get("error", {}).get("message") or str(
+                            result
+                        )
+                        raise ValueError(error_msg)  # 触发重试
 
+                    # HTTP 200，尝试解析图片 URL
                     content_msg = result["choices"][0]["message"]["content"]
-                    if not content_msg:
+                    match = re.search(r"!\[.*?\]\((.*?)\)", content_msg)
+                    if not match:
                         error_msg = "响应为空"
-                        raise ValueError("响应为空")
-                    # 解析图片
-                    if url_match := re.search(r"!\[.*?\]\((.*?)\)", content_msg):
-                        img_url = url_match.group(1)
-                        logger.info(f"返回图片 URL: {img_url}")
-                        img = await self._download_image(img_url, http=False)
-                        if not img:
-                            error_msg = "图片下载失败"
-                            raise ValueError("图片下载失败")
-                        return img
-                    # 返回文本
-                    else:
-                        return content_msg
+                        raise ValueError("响应为空")  # 触发重试
+
+                    img_url = match.group(1)
+                    logger.info(f"返回图片 URL: {img_url}")
+                    img = await self._download_image(img_url, http=False)
+                    if not img:
+                        error_msg = "图片下载失败"
+                        raise ValueError("图片下载失败")  # 触发重试
+                    return img
 
             except Exception as e:
                 logger.error(f"第 {attempt + 1} 次失败: {e}")
                 if attempt < retries:
                     await asyncio.sleep(2**attempt)
+                # 最后一次循环继续，不会提前 return
 
+        # 走到这里说明所有重试机会已用完
         return error_msg or "unknown error"
 
-    async def get_models(self) -> list[str] | None:
+
+    async def fetch_models(self) -> list[str] | None:
         """
-        获取 OpenAI 兼容的模型列表，该列表从 models.json 文件中读取。
+        获取 OpenAI 兼容的模型列表
         """
         url = f"{self.base_url}/v1/models"
-        headers = {"Content-Type": "application/json"}
-        async with self.session.get(url, headers=headers) as resp:
+        async with self.session.get(url, headers=self.headers) as resp:
             if resp.status == 200:
                 data = await resp.json()
-                ids = [m["id"] for m in data["data"]]
-                self.models = ids
-                return ids
+                return [m["id"] for m in data["data"]]
             else:
                 logger.error(f"请求失败，状态码：{resp.status}")
                 text = await resp.text()
