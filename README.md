@@ -19,19 +19,39 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 对接lmarena调用nano_banana等模型进行生图，如手办化
 
 ## 📦 安装
-
-### 安装LMarenaBridge
-
-- 前往 [LMarenaBridge](https://github.com/Lianues/LMarenaBridge)按教程安装,
-- 确保该服务器在 <http://127.0.0.1:5102> 启动
-- 确保油猴脚本已成功连接到本地服务器
-- 确保以battle模式启动，用的是nano_banana模型。
   
-### 安装本插件
+### 1.安装本插件
 
 - 直接在astrbot的插件市场搜索astrbot_plugin_lmarena，点击安装
 
+### 2.安装油猴脚本
+
+- **安装油猴脚本管理器**
+    为你的浏览器安装 [Tampermonkey](https://www.tampermonkey.net/) 扩展。
+
+- **安装本项目油猴脚本**
+    1. 打开 Tampermonkey 扩展的管理面板。
+    2. 点击“添加新脚本”或“Create a new script”。
+    3. 打开 [`LMArenaApiBridge.js`](https://github.com/Zhalslar/astrbot_plugin_lmarena/blob/main/LMArenaApiBridge.js) 文件，将文件里的所有代码复制并粘贴到编辑器中。
+    4. 保存脚本。
+
 ## ⌨️ 使用说明
+
+### 配置
+
+| 配置项       | 说明                                                                 |
+|:-------------|:---------------------------------------------------------------------|
+| server       | 插件内部服务器配置，用于设置服务器的主机、端口和API Key等信息。       |
+| host         | 服务器主机地址，默认为本机地址 `127.0.0.1`。                         |
+| port         | 服务器端口号，默认为 `5102`。                                        |
+| api_key      | 服务器API Key，用于访问服务器时的身份验证，不填则无需验证直接访问。   |
+| base_url     | Lmarena请求地址，用于指定远程服务器地址，默认为本机地址。             |
+| prefix       | 是否启用触发前缀，启用后需要前缀或@bot来触发命令。                    |
+| retries      | 生图失败重试次数，最后一次重试失败时返回错误。                        |
+| prompt       | 生图触发词与提示词，具体配置在 `data/plugins/astrbot_plugin_lmarena/prompt.py` 文件中。 |
+| save_image   | 是否保存生成的图片，保存目录为 `data/plugin_data/astrbot_plugin_lmarena`。 |
+| chat_mode    | 对话模式，可选 `direct_chat` 或 `battle`，切换时需重载插件。          |
+| battle_target| 在Battle模式下，要更新的目标，可选 `A` 或 `B`，切换时需重载插件。      |
 
 ### 命令表
 
@@ -41,6 +61,11 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 |  手办化@群友  or 手办化 @QQ号 | 将群友头像或者QQ号主的头像进行手办化  |
 | (引用图片)/bnn 描述词 | 将图片按照描述词进行处理         |
 | (自定义触发词，如 手办化2) | 请前往data/plugins/astrbot_plugin_lmarena/prompt.py更改，格式为 触发词:提示词        |
+| lm更新 | 更新模型列表并保存到本地JSON中   |
+| lm模型 | 查看模型列表    |
+| lm模型 <序号> | 切换模型模型列表中的第<序号>个模型       |
+| lm捕获 | 发送命令激活油猴脚本的捕获模式, 然后请在浏览器中刷新目标模型从而捕获会话ID    |
+| lm刷新 | 刷新lmarena网页    |
 
 ### 示例图
 
