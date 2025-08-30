@@ -35,6 +35,10 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
     3. 打开 [`LMArenaApiBridge.js`](https://github.com/Zhalslar/astrbot_plugin_lmarena/blob/main/LMArenaApiBridge.js) 文件，将文件里的所有代码复制并粘贴到编辑器中。
     4. 保存脚本。
 
+### 3.捕获会话ID
+
+- 在[竞技场](<https://lmarena.ai>)找到你想要的模型(比如nano_banana)并对话一次, 然后给bot发送命令 `lm捕获`激活油猴脚本的捕获模式，然后点模型右上角的重试按钮，刷新目标模型从而捕获会话ID，然后就可以正常使用了。
+
 ## ⌨️ 使用说明
 
 ### 配置
