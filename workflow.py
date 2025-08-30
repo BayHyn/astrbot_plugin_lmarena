@@ -191,7 +191,6 @@ class Workflow:
         发送「手办化」请求并返回图片 bytes；
         HTTP 非 200 时重试 retries 次，最后一次仍失败则返回错误字符串。
         """
-        text = "手办化这张图片：https://multimedia.nt.qq.com.cn/download?appid=1407&fileid=EhQmoi2ugwnEIEPKcf1t-1S5S55LRhjL6Acg_woowf___cmyjwMyBHByb2RQgL2jAVoQXQwDMudOqNi6UdNbb4rJinoCxPw&rkey=CAQSML9V4mbYusRY2lWhx2vcrEWJD9HD6L0vxH60F118rb4vKJeEN5FABQGXB3ucwP8YFA"
         content: list[dict] = [{"type": "text", "text": text}]
         if image:
             compressed_img = await compress_image(image, 3_500_000)
