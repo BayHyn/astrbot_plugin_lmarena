@@ -32,8 +32,8 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 - **安装本项目油猴脚本**
     1. 打开 Tampermonkey 扩展的管理面板。
     2. 点击“添加新脚本”或“Create a new script”。
-    3. 打开 [`LMArenaApiBridge.js`](https://github.com/Zhalslar/astrbot_plugin_lmarena/blob/main/LMArenaApiBridge.js) 文件，将文件里的所有代码复制并粘贴到编辑器中。
-    4. 保存脚本。
+    3. 打开 [`LMArenaApiBridge.js`](https://github.com/Zhalslar/astrbot_plugin_lmarena/blob/main/LMArenaApiBridge.js) 文件，将文件里的所有代码复制并粘贴到编辑器中并保存。
+    4. 确保有权限运行：浏览器设置 -> 管理拓展 -> 篡改猴 -> 详情 -> 允许运行用户脚本（打开）。
 
 ### 3.捕获会话ID
 
