@@ -91,3 +91,8 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 ## 📌 注意事项
 
 - 想第一时间得到反馈的可以来作者的插件反馈群（QQ群）：460973561（不点star不给进）
+
+## 鸣谢
+
+- [lmarena](https://lmarena.ai) - 模型竞技场
+- [LMArenaBridge](https://github.com/Lianues/LMArenaBridge)  - AI模型竞技场API代理器 
