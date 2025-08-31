@@ -23,13 +23,18 @@
     },
     "base_url": {
         "description": "Lmarena请求地址",
-        "hint": "如果你想用远程服务器来对Lmarena发起访问,，那么请填写远程服务器地址, 默认使用本机 http://127.0.0.1:5102",
-        "type": "string",
-        "default": "http://127.0.0.1:5102"
+        "hint": "如果你想用远程服务器的桥梁来对Lmarena发起访问,，那么请填写远程服务器地址, 不填则使用插件内置桥梁 http://127.0.0.1:5102",
+        "type": "string"
     },
     "prefix": {
         "description": "启用触发前缀",
         "hint": "启用后需要前缀或者@bot来触发命令",
+        "type": "bool",
+        "default": true
+    },
+    "save_image": {
+        "description": "保存生成的图片",
+        "hint": "保存目录: data/plugin_data/astrbot_plugin_lmarena",
         "type": "bool",
         "default": true
     },
@@ -44,12 +49,6 @@
         "hint": "此配置无效，提示词仅供参考，想自定义就前往data/plugins/astrbot_plugin_lmarena/prompt.py更改, 格式为 触发词:提示词",
         "type": "string",
         "default": "Use the nano-banana model to create a 1/7 scale commercialized figure of thecharacter in the illustration, in a realistic styie and environment.Place the figure on a computer desk, using a circular transparent acrylic basewithout any text.On the computer screen, display the ZBrush modeling process of the figure.Next to the computer screen, place a BANDAl-style toy packaging box printedwith the original artwork."
-    },
-    "save_image": {
-        "description": "保存生成的图片",
-        "hint": "保存目录: data/plugin_data/astrbot_plugin_lmarena",
-        "type": "bool",
-        "default": true
     },
     "chat_mode": {
         "description": "对话模式",

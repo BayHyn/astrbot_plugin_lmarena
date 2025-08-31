@@ -22,17 +22,21 @@ class LMArenaPlugin(Star):
         super().__init__(context)
         self.conf = config
         self.plugin_data_dir = StarTools.get_data_dir("astrbot_plugin_lmarena")
-        # 创建 Workflow
-        self.base_url = (
-            self.conf["base_url"]
-            or f"http://{self.conf['server']['host']}:{self.conf['server']['port']}"
-        )
+        self.base_url = self.conf["base_url"]
+        self.server = None
+        self.api = None
+        # base_url为空时，改用本地桥梁连接油猴脚本
+        if not self.base_url:
+            self.base_url = (
+                f"http://{self.conf['server']['host']}:{self.conf['server']['port']}"
+            )
+            # 创建核心 Server
+            self.server = LMArenaBridgeServer(config)
+            # 启动 FastAPI
+            self.api = FastAPIWrapper(self.server, config)
+            self.api.start()
+        # 启动工作流
         self.wf = Workflow(self.base_url)
-        # 创建核心 Server
-        self.server = LMArenaBridgeServer(config)
-        # 启动 FastAPI
-        self.api = FastAPIWrapper(self.server, config)
-        self.api.start()
 
     @filter.event_message_type(filter.EventMessageType.ALL, priority=3)
     async def on_lmarena(self, event: AstrMessageEvent):
@@ -74,6 +78,9 @@ class LMArenaPlugin(Star):
     @filter.command("LM更新", alias={"lm更新"})
     async def trigger_model_update(self, event: AstrMessageEvent):
         """更新LM模型列表"""
+        if not self.server:
+            yield event.plain_result("无法操作, 当前用的不是内置LM桥梁")
+            return
         try:
             await self.server.trigger_model_update()
             yield event.plain_result("已更新模型列表")
@@ -99,17 +106,20 @@ class LMArenaPlugin(Star):
     @filter.command("LM捕获", alias={"lm捕获"})
     async def update_id(self, event: AstrMessageEvent):
         """捕获会话ID"""
-        yield event.plain_result("油猴脚本已激活捕获模式, 请在浏览器中刷新目标模型")
-        session_id, message_id = await self.server.update_id()
-        if not session_id or not message_id:
-            yield event.plain_result("捕获失败")
+        if not self.server:
+            yield event.plain_result("无法操作, 当前用的不是内置LM桥梁")
             return
-        yield event.plain_result(f"已捕获会话ID: {session_id[:8]}...")
+        yield event.plain_result("已发送捕获命令, 请在浏览器中刷新目标模型")
+        result = await self.server.update_id()
+        yield event.plain_result(result)
 
 
     @filter.command("LM刷新", alias={"lm刷新"})
     async def refresh(self, event: AstrMessageEvent):
         """刷新lmarena网页"""
+        if not self.server:
+            yield event.plain_result("无法操作, 当前用的不是内置LM桥梁")
+            return
         try:
             await self.server.refresh()
             yield event.plain_result("已发送指令刷新lmarena网页")
@@ -119,4 +129,6 @@ class LMArenaPlugin(Star):
     async def terminate(self):
         await self.wf.terminate()
         logger.info("[ImageWorkflow] session已关闭")
-        self.api.stop()
+        if self.api:
+            self.api.stop()
+            logger.info("[FastAPIWrapper] 已关闭")

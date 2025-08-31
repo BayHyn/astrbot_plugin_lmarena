@@ -1,7 +1,6 @@
 import asyncio
 import json
-
-import socketserver
+from aiohttp import web
 import threading
 from astrbot.api import logger
 import uuid
@@ -13,7 +12,6 @@ from typing import Optional
 from .models import AvailableModelsManager
 from .response import ResponseManager
 from .process import Process
-from .request import RequestHandler
 from .model_endpoint_map import get_mapping
 
 
@@ -165,30 +163,68 @@ class LMArenaBridgeServer:
     async def refresh(self):
         await self.ws_send({"command": "refresh"})
 
-    async def update_id(self) -> tuple[str, str]:
-        """处理从前端捕获到的 session_id 和 message_id，并写入配置"""
+    async def update_id(
+        self, host: str = "127.0.0.1", port: int = 5103, timeout: int = 20
+    ) -> str:
+        """
+        一次性 aiohttp 监听器，等待 Tampermonkey 推送 {sessionId, messageId}
+        """
         await self.ws_send({"command": "activate_id_capture"})
         loop = asyncio.get_event_loop()
         future = loop.create_future()
-        # 在 Handler 内引用时用实例属性传递
-        RequestHandler.future = future
 
-        def serve():
-            HOST = "127.0.0.1"
-            PORT = 5103
-            socketserver.TCPServer.allow_reuse_address = True  # <-- 允许重用端口
-            with socketserver.ThreadingTCPServer(
-                (HOST, PORT), RequestHandler
-            ) as httpd:  # <-- 多线程
-                logger.info(f"🚀 会话ID更新监听器正在监听地址: http://{HOST}:{PORT}")
-                httpd.serve_forever()
+        async def handler(request: web.Request):
+            # 统一处理 OPTIONS + POST
+            if request.method == "OPTIONS":
+                return web.Response(
+                    status=204,
+                    headers={
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Methods": "POST, OPTIONS",
+                        "Access-Control-Allow-Headers": "Content-Type",
+                    },
+                )
 
-        threading.Thread(target=serve, daemon=True).start()
-        session_id, message_id = await RequestHandler.future
-        self.conf["session_id"] = session_id
-        self.conf["message_id"] = message_id
-        self.conf.save_config()
-        return session_id, message_id
+            data = await request.json()
+            sid, mid = data.get("sessionId"), data.get("messageId")
+            if sid and mid:
+                if not future.done():
+                    future.set_result((sid, mid))
+                return web.json_response(
+                    {"status": "success"}, headers={"Access-Control-Allow-Origin": "*"}
+                )
+            return web.json_response(
+                {"error": "Missing sessionId or messageId"},
+                status=400,
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
+
+        app = web.Application()
+        app.router.add_route("*", "/update", handler)
+        runner = web.AppRunner(app)
+
+        try:
+            await runner.setup()
+            await web.TCPSite(runner, host, port).start()
+            logger.info(
+                f"🚀 捕获监听中: http://{host}:{port}/update (timeout={timeout})"
+            )
+            try:
+                sid, mid = await asyncio.wait_for(future, timeout)
+                self.conf.update({"session_id": sid, "message_id": mid})
+                self.conf.save_config()
+                logger.info(f"✅ 成功捕获并保存: {sid}, {mid}")
+                return f"已捕获会话ID: {sid[:8]}..."
+            except asyncio.TimeoutError:
+                logger.warning("⏳ 捕获超时")
+                return "捕获超时"
+        except OSError as e:
+            logger.error(f"❌ 监听器启动失败 {host}:{port}: {e}")
+            return "监听器启动失败"
+        finally:
+            await runner.cleanup()
+
+
 
     async def trigger_model_update(self):
         """让油猴发送页面源代码"""
@@ -290,7 +326,7 @@ class LMArenaBridgeServer:
                 "message_id": message_id,
             },
         }
-        #print(payload)
+        # print(payload)
         await self.ws_send(payload)
 
         # 返回响应（stream 参数开启流式响应）
