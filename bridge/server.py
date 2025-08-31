@@ -275,7 +275,7 @@ class LMArenaBridgeServer:
         )
 
         # 确定目标模型 ID
-        target_model_id = self.modelmgr.get_target_model_id(model_name)
+        target_model_id = self.modelmgr.get_model_id(model_name)
         logger.debug(f"[{model_name}]:{target_model_id}")
         # 创建响应通道
         self.responser.channels[request_id] = asyncio.Queue()
@@ -290,7 +290,7 @@ class LMArenaBridgeServer:
                 "message_id": message_id,
             },
         }
-        print(payload)
+        #print(payload)
         await self.ws_send(payload)
 
         # 返回响应（stream 参数开启流式响应）

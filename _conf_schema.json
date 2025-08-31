@@ -82,7 +82,8 @@
         "description": "流式响应超时",
         "hint": "服务器等待来自浏览器的下一个数据块的最长时间。非流式也使用此值。\n如果您的网络连接较慢或模型响应时间很长，可以适当增加此值。",
         "type": "int",
-        "default": 360
+        "default": 360,
+        "invisible": true
     },
     "session_id": {
         "description": "当前 LMArena 页面的会话 ID",

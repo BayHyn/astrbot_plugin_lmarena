@@ -99,7 +99,7 @@ class AvailableModelsManager:
             ],
         }
 
-    def get_target_model_id(self, model_name: str) -> str | None:
+    def get_model_id(self, model_name: str) -> str | None:
         """
         根据模型名获取模型 ID，若未找到则返回 None，并记录日志
         """

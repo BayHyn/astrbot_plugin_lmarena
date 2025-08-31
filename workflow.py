@@ -209,10 +209,11 @@ class Workflow:
         url = f"{self.base_url}/v1/chat/completions"
         error_msg = None  # 记录最后一次的错误信息
         for attempt in range(retries + 1):
-            logger.info(f"请求生图(第 {attempt + 1} 次): {text[:50]}...")
+            logger.info(f"请求{model}(第 {attempt + 1} 次): {text[:50]}...")
             try:
                 async with self.session.post(url, headers=self.headers, json=data) as resp:
                     result = await resp.json()
+                    print(result)
                     if resp.status != 200:
                         error_msg = result.get("error", {}).get("message") or str(
                             result
@@ -221,18 +222,19 @@ class Workflow:
 
                     # HTTP 200，尝试解析图片 URL
                     content_msg = result["choices"][0]["message"]["content"]
-                    match = re.search(r"!\[.*?\]\((.*?)\)", content_msg)
-                    if not match:
+                    if match:= re.search(r"!\[.*?\]\((.*?)\)", content_msg):
+                        img_url = match.group(1)
+                        logger.info(f"返回图片 URL: {img_url}")
+                        img = await self._download_image(img_url, http=False)
+                        if not img:
+                            error_msg = "图片下载失败"
+                            raise ValueError("图片下载失败")  # 触发重试
+                        return img
+                    elif content_msg:
+                        return content_msg
+                    else:
                         error_msg = "响应为空"
-                        raise ValueError("响应为空")  # 触发重试
-
-                    img_url = match.group(1)
-                    logger.info(f"返回图片 URL: {img_url}")
-                    img = await self._download_image(img_url, http=False)
-                    if not img:
-                        error_msg = "图片下载失败"
-                        raise ValueError("图片下载失败")  # 触发重试
-                    return img
+                        raise ValueError(error_msg)
 
             except Exception as e:
                 logger.error(f"第 {attempt + 1} 次失败: {e}")

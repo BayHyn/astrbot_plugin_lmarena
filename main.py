@@ -71,7 +71,16 @@ class LMArenaPlugin(Star):
         else:
             yield event.plain_result("生成失败")
 
-    @filter.command("lm模型", alias={"lm模型"})
+    @filter.command("LM更新", alias={"lm更新"})
+    async def trigger_model_update(self, event: AstrMessageEvent):
+        """更新LM模型列表"""
+        try:
+            await self.server.trigger_model_update()
+            yield event.plain_result("已更新模型列表")
+        except Exception:
+            yield event.plain_result("模型列表更新失败")
+
+    @filter.command("LM模型", alias={"lm模型"})
     async def models(self, event: AstrMessageEvent, index: int = 0):
         "查看模型列表，切换模型"
         ids = await self.wf.fetch_models()
@@ -97,14 +106,6 @@ class LMArenaPlugin(Star):
             return
         yield event.plain_result(f"已捕获会话ID: {session_id[:8]}...")
 
-    @filter.command("LM更新", alias={"lm更新"})
-    async def trigger_model_update(self, event: AstrMessageEvent):
-        """更新LM模型列表"""
-        try:
-            await self.server.trigger_model_update()
-            yield event.plain_result("已更新模型列表")
-        except Exception:
-            yield event.plain_result("模型列表更新失败")
 
     @filter.command("LM刷新", alias={"lm刷新"})
     async def refresh(self, event: AstrMessageEvent):
