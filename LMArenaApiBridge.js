@@ -223,7 +223,9 @@
             if (match && !window.isApiBridgeRequest && isCaptureModeActive) {
                 const sessionId = match[1];
                 const messageId = match[2];
+
                 console.log(`[API Bridge Interceptor] 🎯 在激活模式下捕获到ID！正在发送...`);
+
 
                 // 关闭捕获模式，确保只发送一次
                 isCaptureModeActive = false;
