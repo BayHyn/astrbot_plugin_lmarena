@@ -32,16 +32,21 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 - **安装本项目油猴脚本**
     1. 打开 Tampermonkey 扩展的管理面板。
     2. 点击“添加新脚本”或“Create a new script”。
-    3. 打开 [`LMArenaApiBridge.js`](https://github.com/Zhalslar/astrbot_plugin_lmarena/blob/main/LMArenaApiBridge.js) 文件，将文件里的所有代码复制并粘贴到编辑器中并保存。
-    4. 确保有权限运行：浏览器设置 -> 管理拓展 -> 篡改猴 -> 详情 -> 允许运行用户脚本（打开）。
+    3. 打开 [`LMArenaApiBridge.js`](https://github.com/Zhalslar/astrbot_plugin_lmarena/blob/main/LMArenaApiBridge.js) 文件，将文件里的所有代码复制并粘贴到编辑器中。
+    4. 确保有权限运行（谷歌浏览器示例）：浏览器设置 -> 管理拓展 -> 篡改猴 -> 详情 -> 允许运行用户脚本（打开）。
+
+### 3.插件与油猴对接
+
+- 开启/重载插件时，日志显示：[bridge.server:74]: WebSocket 端点: ws://127.0.0.1:5102/ws
+- 开启脚本刷新[LMArena.ai](https://lmarena.ai/)页面时，日志显示：✅ 油猴脚本已成功连接 WebSocket。并且[LMArena.ai](https://lmarena.ai/)页面页面标题会以 ✅ 开头。
 
 ### 3.捕获会话ID
 
 - 在[竞技场](<https://lmarena.ai>)找到你想要的模型(比如nano_banana)并对话一次。
 - Direct_chat模式寻找nano_banana示例：点聊天栏左下角的图片图标，此时就可以页面上方看见模型列表里有nano_banana可选了。
 - Battle模式寻找nano_banana示例：battle模式下上传一张图，输入手办化的提示词进行生图，效果像下面示例图的就是nano_banana了，提示词：（Use the nano-banana model to create a 1/7 scale commercialized figure of thecharacter in the illustration, in a realistic styie and environment.Place the figure on a computer desk, using a circular transparent acrylic base without any text.On the computer screen, display the ZBrush modeling process of the figure.Next to the computer screen, a transparent board with a wooden base on which the original artwork is printed.）。
-- 进入插件配置面板，设置你当前模型的对话模式（direct_chat或battle模）、在 Battle 模式下，要更新的目标（左侧为A，右侧为B），
-- 给bot发送命令 `lm捕获`激活油猴脚本的捕获模式，然后点模型右上角的重试按钮，刷新目标模型从而捕获会话ID，然后就可以正常使用了
+- 在 Battle 模式下，要进入插件配置面板选择更新的目标（左侧为A，右侧为B），改变目标时要重载插件
+- 一切准备就绪后，给bot发送命令 `lm捕获`或`lmc`激活油猴脚本的捕获模式，然后点模型右上角的重试按钮，刷新目标模型从而捕获会话ID，然后就可以正常使用了
 
 ## ⌨️ 使用说明
 
@@ -58,22 +63,18 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 | retries      | 生图失败重试次数，最后一次重试失败时返回错误。                        |
 | prompt       | 生图触发词与提示词，具体配置在 `data/plugins/astrbot_plugin_lmarena/prompt.py` 文件中。 |
 | save_image   | 是否保存生成的图片，保存目录为 `data/plugin_data/astrbot_plugin_lmarena`。 |
-| chat_mode    | 对话模式，可选 `direct_chat` 或 `battle`，切换时需重载插件。          |
 | battle_target| 在Battle模式下，要更新的目标，可选 `A` 或 `B`，切换时需重载插件。      |
 
 ### 命令表
 
 |     命令      |                    说明                    |
 |:-------------:|:-----------------------------------------------:|
-| (引用图片)/手办化  | 将图片进行手办化  |
-|  手办化@群友  or 手办化 @QQ号 | 将群友头像或者QQ号主的头像进行手办化  |
-| (引用图片)/bnn 描述词 | 将图片按照描述词进行处理         |
-| (自定义触发词，如 手办化2) | 请前往data/plugins/astrbot_plugin_lmarena/prompt.py更改，格式为 触发词:提示词        |
-| lm更新 | 更新模型列表并保存到本地JSON中   |
-| lm模型 | 查看模型列表    |
-| lm模型 <序号> | 切换模型模型列表中的第<序号>个模型       |
-| lm捕获 | 发送命令激活油猴脚本的捕获模式, 然后请在浏览器中刷新目标模型从而捕获会话ID    |
-| lm刷新 | 刷新lmarena网页    |
+| `(引用图片)/手办化`  | 将图片进行手办化  |
+|  `手办化@群友`  or `手办化 @QQ号` | 将群友头像或者QQ号主的头像进行手办化  |
+| `(引用图片)/bnn 描述词` | 将图片按照描述词进行处理         |
+| (自定义触发词，如 `手办化2` `Q版化2`) | 请前往data/plugins/astrbot_plugin_lmarena/prompt.py更改，格式为 触发词:提示词        |
+| `lm捕获` or `lmc`  | 发送命令激活油猴脚本的捕获模式, 然后请在浏览器中刷新目标模型从而捕获会话ID    |
+| `lm刷新` or `lmr` | 刷新lmarena网页    |
 
 ### 示例图
 

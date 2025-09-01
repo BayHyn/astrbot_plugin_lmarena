@@ -3,8 +3,7 @@ import json
 import re
 import time
 import uuid
-from typing import Optional, Any
-
+from typing import Any
 from fastapi import Response
 from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
@@ -33,35 +32,6 @@ class ResponseManager:
         ]
 
     # ---------------- OpenAI 格式化 ----------------
-    def _make_chunk(
-        self,
-        model: str,
-        request_id: str,
-        content: str = "",
-        finish: Optional[str] = None,
-    ) -> str:
-        """统一生成流式数据块"""
-        chunk = {
-            "id": request_id,
-            "object": "chat.completion.chunk",
-            "created": int(time.time()),
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "delta": {"content": content} if content else {},
-                    "finish_reason": finish,
-                }
-            ],
-        }
-        return f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
-
-    def _make_final_chunk(
-        self, model: str, request_id: str, reason: str = "stop"
-    ) -> str:
-        """结束块"""
-        return self._make_chunk(model, request_id, finish=reason) + "data: [DONE]\n\n"
-
     def _make_non_stream(
         self, content: str, model: str, request_id: str, reason: str = "stop"
     ) -> dict:
@@ -121,18 +91,20 @@ class ResponseManager:
             return
 
         buffer: Any = ""
-        timeout = self.conf["stream_response_timeout_seconds"]
         has_yielded_content = False
 
         try:
             while True:
                 try:
-                    raw_data = await asyncio.wait_for(queue.get(), timeout=timeout)
+                    raw_data = await asyncio.wait_for(queue.get(), self.conf["timeout"])
                 except asyncio.TimeoutError:
                     logger.warning(
-                        f"PROCESSOR [ID: {request_id[:8]}]: 等待浏览器数据超时（{timeout}秒）。"
+                        f"PROCESSOR [ID: {request_id[:8]}]: 等待浏览器数据超时。"
                     )
-                    yield "error", f"Response timed out after {timeout} seconds."
+                    yield (
+                        "error",
+                        f"Response timed out after {self.conf['timeout']} seconds.",
+                    )
                     return
                 match raw_data:
                     case {"error": err}:  # WebSocket 直接错误
@@ -212,41 +184,9 @@ class ResponseManager:
                 del self.channels[request_id]
 
     # ---------------- 对外接口 ----------------
-    async def stream_generator(self, request_id: str, model: str):
-        """将内部事件流格式化为 OpenAI SSE 响应。"""
-        response_id = f"chatcmpl-{uuid.uuid4()}"
-        logger.debug(f"STREAMER [ID: {request_id[:8]}]: 流式生成器启动。")
-
-        finish_reason = "stop"
-
-        async for event_type, data in self._process_lmarena_stream(request_id):
-            match event_type:
-                case "content":
-                    yield self._make_chunk(model, response_id, content=data)
-                case "finish":
-                    finish_reason = data
-                    if data == "content-filter":
-                        warning = "\n\n响应被终止，可能是上下文超限或者模型内部审查（大概率）的原因"
-                        yield self._make_chunk(model, response_id, content=warning)
-                case "error":
-                    logger.error(
-                        f"STREAMER [ID: {request_id[:8]}]: 流中发生错误: {data}"
-                    )
-                    yield self._make_chunk(
-                        model, response_id, content=f"\n\n[LMArena Error]: {data}"
-                    )
-                    yield self._make_final_chunk(model, response_id, reason="stop")
-                    return  # 出错立即结束
-
-        # 自然结束（收到 [DONE]）
-        yield self._make_final_chunk(model, response_id, finish_reason)
-        logger.debug(f"STREAMER [ID: {request_id[:8]}]: 流式生成器正常结束。")
-
     async def non_stream_response(self, request_id: str, model: str):
         """聚合内部事件流并返回单个 OpenAI JSON 响应。"""
         response_id = f"chatcmpl-{uuid.uuid4()}"
-        logger.debug(f"NON-STREAM [ID: {request_id[:8]}]: 开始处理非流式响应。")
-
         full_content: list[str] = []
         finish_reason = "stop"
 
@@ -285,8 +225,6 @@ class ResponseManager:
         response_data = self._make_non_stream(
             final_content, model, response_id, finish_reason
         )
-
-        logger.debug(f"NON-STREAM [ID: {request_id[:8]}]: 响应聚合完成。")
         return Response(
             content=json.dumps(response_data, ensure_ascii=False),
             media_type="application/json",

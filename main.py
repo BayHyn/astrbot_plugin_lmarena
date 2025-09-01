@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from astrbot.api.event import filter
 from astrbot import logger
@@ -15,7 +14,7 @@ from .prompt import prompt_map
     "astrbot_plugin_lmarena",
     "Zhalslar",
     "全面对接lmarena(模型竞技场)，免费无限调用最新模型，如调用nano-banana进行手办化",
-    "v2.0.0",
+    "v2.0.2",
 )
 class LMArenaPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -45,18 +44,21 @@ class LMArenaPlugin(Star):
             return
 
         cmd, _, text = event.message_str.partition(" ")
-        image = None
+        images = None
         if cmd == "lm":
             text = text.strip()
         elif cmd in prompt_map:
-            image = await self.wf.get_first_image(event)
+            images = await self.wf.get_images(event, return_url=self.conf["url_mode"])
             if not text or text.startswith("@"):
                 text = prompt_map[cmd]
         else:
             return
 
         chat_res = await self.wf.fetch_content(
-            image, text, self.conf["model"], self.conf["retries"]
+            text=text,
+            images=images,
+            model="default_model",
+            retries=self.conf["retries"],
         )
 
         if isinstance(chat_res, bytes):
@@ -64,7 +66,7 @@ class LMArenaPlugin(Star):
             if self.conf["save_image"]:
                 save_path = (
                     self.plugin_data_dir
-                    / f"{self.conf['model']}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
+                    / f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
                 )
                 with save_path.open("wb") as f:
                     f.write(chat_res)
@@ -74,47 +76,24 @@ class LMArenaPlugin(Star):
 
         else:
             yield event.plain_result("生成失败")
+        event.stop_event()
 
-    @filter.command("LM更新", alias={"lm更新"})
-    async def trigger_model_update(self, event: AstrMessageEvent):
-        """更新LM模型列表"""
-        if not self.server:
-            yield event.plain_result("无法操作, 当前用的不是内置LM桥梁")
-            return
-        try:
-            await self.server.trigger_model_update()
-            yield event.plain_result("已更新模型列表")
-        except Exception:
-            yield event.plain_result("模型列表更新失败")
 
-    @filter.command("LM模型", alias={"lm模型"})
-    async def models(self, event: AstrMessageEvent, index: int = 0):
-        "查看模型列表，切换模型"
-        ids = await self.wf.fetch_models()
-        if not ids:
-            yield event.plain_result("模型列表为空")
-            return
-        if 0 < index <= len(ids):
-            sel_model = ids[index - 1]
-            yield event.plain_result(f"已选择模型：{sel_model}")
-            self.conf["model"] = sel_model
-            self.conf.save_config()
-        else:
-            msg = "\n".join(f"{i + 1}. {m}" for i, m in enumerate(ids))
-            yield event.plain_result(msg)
-
-    @filter.command("LM捕获", alias={"lm捕获"})
+    @filter.command("lm捕获", alias={"lmc"})
     async def update_id(self, event: AstrMessageEvent):
         """捕获会话ID"""
         if not self.server:
             yield event.plain_result("无法操作, 当前用的不是内置LM桥梁")
             return
         yield event.plain_result("已发送捕获命令, 请在浏览器中刷新目标模型")
-        result = await self.server.update_id()
+        result = await self.server.update_id(
+            host=self.conf["server"]["host"],
+            port=int(self.conf["server"]["port"]) + 1,
+            timeout = 20,
+        )
         yield event.plain_result(result)
 
-
-    @filter.command("LM刷新", alias={"lm刷新"})
+    @filter.command("lm刷新", alias={"lmr"})
     async def refresh(self, event: AstrMessageEvent):
         """刷新lmarena网页"""
         if not self.server:

@@ -9,9 +9,8 @@ class Process:
     处理消息
     """
 
-    def __init__(self, config: AstrBotConfig, model_map: dict[str, dict[str, str]]):
+    def __init__(self, config: AstrBotConfig):
         self.conf = config
-        self.model_map = model_map
 
     @staticmethod
     def _make_file_name(content_type: str, original_name: str | None) -> str:
@@ -84,12 +83,7 @@ class Process:
 
         return {"role": role, "content": text_content, "attachments": attachments}
 
-    def openai_to_lmarena(
-        self,
-        openai_req: dict,
-        mode_override: str | None = None,
-        battle_target_override: str | None = None,
-    ) -> list[dict]:
+    def openai_to_lmarena(self, openai_req: dict) -> list[dict]:
         """
         将 OpenAI 请求体转换为油猴脚本所需的简化载荷，并应用酒馆模式、绕过模式以及对战模式。
         新增了模式覆盖参数，以支持模型特定的会话模式。
@@ -138,10 +132,7 @@ class Process:
             )
 
         # 绕过敏感词: 对文本模型添加一个 position 'a' 的用户消息
-        if (
-            self.model_map.get(openai_req.get("model", ""), {}).get("type", "text")
-            == "text"
-        ):
+        if self.conf["bypass_sensitivity"]:
             templates.append(
                 {
                     "role": "user",
@@ -151,21 +142,12 @@ class Process:
                 }
             )
 
-        # 应用参与者位置, 优先使用覆盖的模式，否则回退到全局配置
-        mode = mode_override or self.conf["chat_mode"]
-        target_participant = (
-            battle_target_override or self.conf["battle_target"]
-        ).lower()
-
+        # 应用参与者位置
         for msg in templates:
-            match mode:
-                case "battle":
-                    msg["participantPosition"] = target_participant
+            match msg["role"]:
+                case "system":
+                    msg["participantPosition"] = "b"
                 case _:
-                    match msg["role"]:
-                        case "system":
-                            msg["participantPosition"] = "b"
-                        case _:
-                            msg["participantPosition"] = "a"
+                    msg["participantPosition"] = self.conf["battle_target"].lower()
 
         return templates

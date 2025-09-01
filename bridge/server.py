@@ -5,14 +5,11 @@ import threading
 from astrbot.api import logger
 import uuid
 from fastapi import WebSocket, WebSocketDisconnect, Request, HTTPException, FastAPI
-from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from typing import Optional
-from .models import AvailableModelsManager
 from .response import ResponseManager
 from .process import Process
-from .model_endpoint_map import get_mapping
 
 
 class FastAPIWrapper:
@@ -101,15 +98,11 @@ class LMArenaBridgeServer:
 
     def __init__(self, config: AstrBotConfig):
         self.conf = config
-        # 可用模型管理器
-        self.modelmgr = AvailableModelsManager(config)
-        # 进程处理器
-        self.processor = Process(config, self.modelmgr.model_map)
+        # 消息模版处理器
+        self.processor = Process(config)
         # 响应管理器
         self.responser = ResponseManager(config)
         self.responser.callback = self.refresh
-        # 是否正在因人机验证而刷新
-        self.is_refreshing_flag = False
         logger.info("[LMArena Bridge] 后端已启动...")
 
     # ---------------- WS处理 ----------------
@@ -164,7 +157,10 @@ class LMArenaBridgeServer:
         await self.ws_send({"command": "refresh"})
 
     async def update_id(
-        self, host: str = "127.0.0.1", port: int = 5103, timeout: int = 20
+        self,
+        host: str = "127.0.0.1",
+        port: int = 5103,
+        timeout: int = 20,
     ) -> str:
         """
         一次性 aiohttp 监听器，等待 Tampermonkey 推送 {sessionId, messageId}
@@ -174,7 +170,6 @@ class LMArenaBridgeServer:
         future = loop.create_future()
 
         async def handler(request: web.Request):
-            # 统一处理 OPTIONS + POST
             if request.method == "OPTIONS":
                 return web.Response(
                     status=204,
@@ -224,28 +219,7 @@ class LMArenaBridgeServer:
         finally:
             await runner.cleanup()
 
-
-
-    async def trigger_model_update(self):
-        """让油猴发送页面源代码"""
-        await self.ws_send({"command": "send_page_source"})
-
-    async def update_available_models_endpoint(self, request: Request):
-        """
-        接收来自油猴脚本的页面 HTML，提取并更新 available_models.json。
-        """
-        html_content = await request.body()
-        if not html_content:
-            logger.warning("模型更新请求未收到任何 HTML 内容。")
-            return
-        logger.info("收到来自油猴脚本的页面内容，开始提取可用模型...")
-        self.modelmgr.update_from_html(html_content.decode("utf-8"))
-
     # ---------------- FastAPI调用 ----------------
-    async def get_models(self):
-        """提供兼容 OpenAI 的模型列表。"""
-        return self.modelmgr.get_models_list()
-
     async def chat_completions(self, request: Request):
         """
         FastAPI 路由函数
@@ -269,50 +243,9 @@ class LMArenaBridgeServer:
             if provided_key != self.conf["server"]["api_key"]:
                 raise HTTPException(status_code=401, detail="提供的 API Key 不正确。")
 
-        # 获取模型名
-        model_name = openai_req.get("model")
-        if not model_name:
-            raise HTTPException(
-                status_code=400,
-                detail="未指定模型名。请检查请求体。",
-            )
-
-        # 会话ID映射
-        session_id, message_id, mode_override, battle_target_override = get_mapping(
-            model_name
-        )
-
-        # 全局回退
-        if not session_id:
-            session_id = self.conf["session_id"]
-            message_id = self.conf["message_id"]
-            logger.debug(f"使用全局 Session ID: {session_id}")
-
-        # 验证最终会话信息
-        if (
-            not session_id
-            or not message_id
-            or "YOUR_" in session_id
-            or "YOUR_" in message_id
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail="会话ID或消息ID无效。请检查配置",
-            )
-
         # 生成请求ID
         request_id = str(uuid.uuid4())
 
-        # 参数转换
-        message_templates = self.processor.openai_to_lmarena(
-            openai_req,
-            mode_override=mode_override,
-            battle_target_override=battle_target_override,
-        )
-
-        # 确定目标模型 ID
-        target_model_id = self.modelmgr.get_model_id(model_name)
-        logger.debug(f"[{model_name}]:{target_model_id}")
         # 创建响应通道
         self.responser.channels[request_id] = asyncio.Queue()
 
@@ -320,28 +253,20 @@ class LMArenaBridgeServer:
         payload = {
             "request_id": request_id,
             "payload": {
-                "message_templates": message_templates,
-                "target_model_id": target_model_id,
-                "session_id": session_id,
-                "message_id": message_id,
+                "message_templates": self.processor.openai_to_lmarena(openai_req),
+                "target_model_id": None, # fuck! 原来是个没作用的参数
+                "session_id": self.conf["session_id"],
+                "message_id": self.conf["message_id"],
             },
         }
-        # print(payload)
+        logger.debug(payload)
         await self.ws_send(payload)
 
         # 返回响应（stream 参数开启流式响应）
         try:
-            if openai_req.get("stream", False):
-                return StreamingResponse(
-                    self.responser.stream_generator(
-                        request_id, model_name or "default_model"
-                    ),
-                    media_type="text/event-stream",
-                )
-            else:
-                return await self.responser.non_stream_response(
-                    request_id, model_name or "default_model"
-                )
+            return await self.responser.non_stream_response(
+                request_id, "default_model"
+            )
         except Exception as e:
             logger.error(
                 f"API CALL [ID: {request_id[:8]}]: 处理请求时发生致命错误: {e}",
