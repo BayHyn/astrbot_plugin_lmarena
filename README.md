@@ -14,6 +14,8 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 
 </div>
 
+# 对应竞技场的nano_banana模型，自2025年8月31号开始，很多用户出现空响应问题，本人水平暂时不够无法找出根源解决此问题，虽然仍有部分用户能正常使用，但还是建议换用其他手办化插件，本插件不再维护！
+
 ## 🤝 介绍
 
 对接lmarena调用nano_banana等模型进行生图，如手办化
