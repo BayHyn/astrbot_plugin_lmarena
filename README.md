@@ -40,7 +40,7 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 - 开启/重载插件时，日志显示：[bridge.server:74]: WebSocket 端点: ws://127.0.0.1:5102/ws
 - 开启脚本刷新[LMArena.ai](https://lmarena.ai/)页面时，日志显示：✅ 油猴脚本已成功连接 WebSocket。并且[LMArena.ai](https://lmarena.ai/)页面页面标题会以 ✅ 开头。
 
-### 3.捕获会话ID
+### 4.捕获会话ID
 
 - 在[竞技场](<https://lmarena.ai>)找到你想要的模型(比如nano_banana)并对话一次。
 - Direct_chat模式寻找nano_banana示例：点聊天栏左下角的图片图标，此时就可以页面上方看见模型列表里有nano_banana可选了。
