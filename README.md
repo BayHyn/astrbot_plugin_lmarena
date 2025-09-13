@@ -63,7 +63,7 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 
 ### 示例图
 
-![download](https://github.com/user-attachments/assets/ace793ec-df40-450c-ab8b-37525c1de07c)
+![download](https://github.com/user-attachments/assets/3857e6a6-76f0-42f4-8ee0-00a91473c5f8)
 
 
 ## 👥 贡献指南
