@@ -61,10 +61,15 @@ class Process:
                             if url.startswith("data:"):  # base64
                                 content_type = url.split(";")[0].split(":")[1]
                             else:  # 普通 URL，直接猜类型
-                                content_type = mimetypes.guess_type(url)[0] or "application/octet-stream"
+                                content_type = (
+                                    mimetypes.guess_type(url)[0]
+                                    or "application/octet-stream"
+                                )
 
-                            file_name = self._make_file_name(content_type, original_name)
-                            #file_name = "file_de04bac6-cd82-476a-8474-cb3871386fe5.png"
+                            file_name = self._make_file_name(
+                                content_type, original_name
+                            )
+                            # file_name = "file_de04bac6-cd82-476a-8474-cb3871386fe5.png"
                             attachments.append(
                                 {
                                     "name": file_name,

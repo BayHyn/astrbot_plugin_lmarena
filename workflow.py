@@ -1,11 +1,13 @@
 import asyncio
+import mimetypes
 import re
 import base64
-import random
 from pathlib import Path
 from typing import Optional
+import uuid
 import aiohttp
 from astrbot.api import logger
+from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 import astrbot.core.message.components as Comp
 import io
@@ -88,13 +90,73 @@ class Workflow:
 
     headers = {"Content-Type": "application/json"}
 
-    def __init__(self, base_url: str):
+    def __init__(self, config: AstrBotConfig):
         """
         :param base_url: API 的 base url
         :param model: 模型名称
         """
-        self.base_url = base_url
+        self.conf = config
+
+        # 获取桥梁服务器地址
+        self.bridge_server_url = config["bridge_server"]["url"]
+        if not self.bridge_server_url:
+            self.bridge_server_url = f"http://{config['bridge_server']['host']}:{config['bridge_server']['port']}"
+
+        self.image_server_url = config["image_server"]["url"]
+        if config["image_server"]["enable"]:
+            self.image_server_url = f"http://{config['image_server']['host']}:{config['image_server']['port']}"
+
+        self.url_prefix = self.image_server_url.rsplit("/", 1)[0]
+
         self.session = aiohttp.ClientSession()
+
+    async def upload_to_bed(self, img_bytes: bytes) -> str | None:
+        """
+        转 base64 并上传到图床，返回可访问的 URL。
+        """
+        try:
+            # 自动生成文件名（确保唯一）
+            file_name = f"{uuid.uuid4().hex}.jpg"
+            mime_type = mimetypes.guess_type(file_name)[0] or "image/jpeg"
+
+            # 转 Base64
+            base64_str = base64.b64encode(img_bytes).decode()
+            data_uri = f"data:{mime_type};base64,{base64_str}"
+
+            api_key = self.conf["image_server"]["api_key"]
+            payload = {
+                "file_name": file_name,
+                "file_data": data_uri,
+                "api_key": api_key,
+            }
+
+            async with self.session.post(
+                url=self.image_server_url, json=payload
+            ) as response:
+                if response.status >= 400:
+                    error_text = await response.text()
+                    logger.error(
+                        f"上传到文件床时发生 HTTP 错误: {response.status} - {error_text}"
+                    )
+                    return None
+
+                result = await response.json()
+                if not (result.get("success") and result.get("filename")):
+                    logger.error(f"图床上传失败: {result.get('error', '未知错误')}")
+                    return None
+                # 拼接 URL
+                uploaded_url = f"{self.url_prefix}/uploads/{result['filename']}"
+                logger.info(f"图片成功上传到图床: {uploaded_url}")
+                return uploaded_url
+
+        except aiohttp.ClientResponseError as e:
+            logger.error(f"上传到文件床时发生 HTTP 响应错误: {e.status} - {e.message}")
+        except aiohttp.ClientError as e:
+            logger.error(f"连接到文件床服务器时出错: {e}")
+        except Exception as e:
+            logger.error(f"上传文件时发生未知错误: {e}", exc_info=True)
+
+        return None
 
     async def _download_image(self, url: str, http: bool = True) -> bytes | None:
         """下载图片"""
@@ -106,15 +168,6 @@ class Workflow:
         except Exception as e:
             logger.error(f"图片下载失败: {e}")
             return None
-
-    async def _get_avatar(
-        self, user_id: str, return_url: bool = False
-    ) -> bytes | str | None:
-        """根据 QQ 号下载头像"""
-        if not user_id.isdigit():
-            user_id = "".join(random.choices("0123456789", k=9))
-        avatar_url = f"https://q4.qlogo.cn/headimg_dl?dst_uin={user_id}&spec=640"
-        return await self._resolve_image(avatar_url, return_url)
 
     async def _load_bytes(self, src: str) -> bytes | None:
         """统一把 src 转成 bytes"""
@@ -133,47 +186,22 @@ class Workflow:
         # 抽 GIF 第一帧
         return extract_first_frame(raw)
 
-    async def _resolve_image(
-        self, src: str, return_url: bool = False
-    ) -> bytes | str | None:
-        """
-        根据 return_url 决定返回 URL 还是 bytes。
-        - 如果 return_url=True 且 src 是 URL，则返回 URL
-        - 否则返回 bytes
-        """
-        if return_url and src.startswith("http"):
-            return src
-        return await self._load_bytes(src)
-
-    async def _extract_from_segments(
-        self, segments: list, event: AstrMessageEvent, return_url: bool
-    ) -> list[bytes | str]:
+    async def _extract_from_segments(self, segments: list) -> list[bytes | str]:
         """从消息片段中提取图片或头像"""
         results: list[bytes | str] = []
         for seg in segments:
             if isinstance(seg, Comp.Image):
-                src = seg.url or seg.file
-                if src:
-                    img = await self._resolve_image(src, return_url)
-                    if img:
-                        results.append(img)
+                if src := seg.url or seg.file:
+                    if img_bytes := await self._load_bytes(src):
+                        if self.image_server_url:
+                            if url := await self.upload_to_bed(img_bytes):
+                                results.append(url)
+                        else:
+                            results.append(img_bytes)
 
-            elif isinstance(seg, Comp.At) and str(seg.qq) != event.get_self_id():
-                avatar = await self._get_avatar(str(seg.qq), return_url)
-                if avatar:
-                    results.append(avatar)
-
-            elif isinstance(seg, Comp.Plain):
-                plains = seg.text.strip().split()
-                if len(plains) == 2 and plains[1].startswith("@"):
-                    avatar = await self._get_avatar(plains[1][1:], return_url)
-                    if avatar:
-                        results.append(avatar)
         return results
 
-    async def get_images(
-        self, event: AstrMessageEvent, return_url: bool = False
-    ) -> list[bytes | str]:
+    async def get_images(self, event: AstrMessageEvent) -> list[bytes | str]:
         """收集消息和引用里的所有图片/头像"""
         images: list[bytes | str] = []
 
@@ -182,26 +210,15 @@ class Workflow:
             (s for s in event.get_messages() if isinstance(s, Comp.Reply)), None
         )
         if reply_seg and reply_seg.chain:
-            images.extend(
-                await self._extract_from_segments(reply_seg.chain, event, return_url)
-            )
+            images.extend(await self._extract_from_segments(reply_seg.chain))
 
         # 2. 当前消息
-        images.extend(
-            await self._extract_from_segments(event.get_messages(), event, return_url)
-        )
-
-        # 兜底
-        if not images:
-            avatar = await self._get_avatar(event.get_sender_id(), return_url)
-            if avatar:
-                images.append(avatar)
-
+        images.extend(await self._extract_from_segments(event.get_messages()))
         return images
 
     @staticmethod
     async def make_openai_req(
-        text: str, images: bytes | str | list[bytes | str] | None, model: str
+        text: str, images: list[bytes | str] | None, model: str
     ) -> dict:
         """
         制作 OpenAI 格式数据块，支持多张图片
@@ -209,33 +226,24 @@ class Workflow:
         """
         content: list[dict] = [{"type": "text", "text": text}]
 
-        if not images:
-            return {
-                "model": model,
-                "messages": [{"role": "user", "content": content}],
-                "n": 1,
-            }
+        if images:
+            for img in images:
+                if isinstance(img, bytes):
+                    compressed = await compress_image(img, 3_500_000)
+                    img_url = (
+                        f"data:image/jpeg;base64,{base64.b64encode(compressed).decode()}"
+                    )
+                elif isinstance(img, str):
+                    img_url = img
+                else:
+                    continue
 
-        if not isinstance(images, list):
-            images = [images]  # 统一成列表
-
-        for img in images:
-            if isinstance(img, bytes):
-                compressed = await compress_image(img, 3_500_000)
-                img_url = (
-                    f"data:image/jpeg;base64,{base64.b64encode(compressed).decode()}"
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": img_url},
+                    }
                 )
-            elif isinstance(img, str):
-                img_url = img
-            else:
-                continue
-
-            content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {"url": img_url},
-                }
-            )
 
         return {
             "model": model,
@@ -246,7 +254,7 @@ class Workflow:
     async def fetch_content(
         self,
         text: str,
-        images: bytes | str | list[bytes | str] | None,
+        images: list[bytes | str] | None,
         model: str,
         retries: int = 3,
     ) -> bytes | str | None:
@@ -255,8 +263,8 @@ class Workflow:
         失败时重试 retries 次，最后一次仍失败则返回错误字符串。
         """
         openai_req = await self.make_openai_req(text, images, model)
-        logger.warning(openai_req)
-        url = f"{self.base_url}/v1/chat/completions"
+        logger.debug(openai_req)
+        url = f"{self.bridge_server_url}/v1/chat/completions"
         error_msg = None  # 记录最后一次的错误信息
         for attempt in range(retries + 1):
             logger.info(f"请求{model}(第 {attempt + 1} 次): {text[:50]}...")

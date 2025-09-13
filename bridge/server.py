@@ -18,8 +18,8 @@ class FastAPIWrapper:
         server: LMArenaBridgeServer 实例
         """
         self.server = server
-        self.host = config["server"]["host"]
-        self.port = config["server"]["port"]
+        self.host = config["bridge_server"]["host"]
+        self.port = config["bridge_server"]["port"]
         self.app = FastAPI(lifespan=self.lifespan)  # type: ignore
         self._uvicorn_server = None
         self._server_thread: Optional[threading.Thread] = None
@@ -69,24 +69,20 @@ class FastAPIWrapper:
             target=self._uvicorn_server.run, daemon=True
         )
         self._server_thread.start()
-        logger.info("[LMArena Bridge] 服务器已启动...")
+        logger.info("LMArena 桥梁服务器已启动...")
         logger.info(f"监听地址: {self.host}:{self.port}")
         logger.info(f"WebSocket 端点: ws://{self.host}:{self.port}/ws")
 
     def stop(self):
         if self._uvicorn_server:
-            # 请求 Server 停止
             self._uvicorn_server.should_exit = True
 
-            # 等待 Server 彻底退出
             if self._server_thread and self._server_thread.is_alive():
-                logger.info("等待 Uvicorn 线程退出...")
                 self._server_thread.join(timeout=5)
 
-            # 尝试显式清理引用
             self._uvicorn_server = None
             self._server_thread = None
-            logger.info("Uvicorn 已关闭，端口应已释放。")
+            logger.info("LMArena 桥梁服务器已优雅关闭")
 
 
 class LMArenaBridgeServer:
@@ -232,7 +228,7 @@ class LMArenaBridgeServer:
             raise HTTPException(status_code=400, detail="无效的 JSON 请求体")
 
         # API Key 验证
-        if self.conf["server"]["api_key"]:
+        if self.conf["bridge_server"]["api_key"]:
             auth_header = request.headers.get("Authorization")
             if not auth_header or not auth_header.startswith("Bearer "):
                 raise HTTPException(
@@ -240,7 +236,7 @@ class LMArenaBridgeServer:
                     detail="未提供 API Key。请在 Authorization 头部中以 'Bearer YOUR_KEY' 格式提供。",
                 )
             provided_key = auth_header.split(" ")[1]
-            if provided_key != self.conf["server"]["api_key"]:
+            if provided_key != self.conf["bridge_server"]["api_key"]:
                 raise HTTPException(status_code=401, detail="提供的 API Key 不正确。")
 
         # 生成请求ID
