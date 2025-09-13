@@ -52,18 +52,7 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 
 ### 配置
 
-| 配置项       | 说明                                                                 |
-|:-------------|:---------------------------------------------------------------------|
-| server       | 插件内部服务器配置，用于设置服务器的主机、端口和API Key等信息。       |
-| host         | 服务器主机地址，默认为本机地址 `127.0.0.1`。                         |
-| port         | 服务器端口号，默认为 `5102`。                                        |
-| api_key      | 服务器API Key，用于访问服务器时的身份验证，不填则无需验证直接访问。   |
-| base_url     | Lmarena请求地址，用于指定远程服务器地址，默认为本机地址。             |
-| prefix       | 是否启用触发前缀，启用后需要前缀或@bot来触发命令。                    |
-| retries      | 生图失败重试次数，最后一次重试失败时返回错误。                        |
-| prompt       | 生图触发词与提示词，具体配置在 `data/plugins/astrbot_plugin_lmarena/prompt.py` 文件中。 |
-| save_image   | 是否保存生成的图片，保存目录为 `data/plugin_data/astrbot_plugin_lmarena`。 |
-| battle_target| 在Battle模式下，要更新的目标，可选 `A` 或 `B`，切换时需重载插件。      |
+请前往插件配置面板查看
 
 ### 命令表
 
@@ -75,8 +64,6 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 | `lm帮助` or `lmh` | 查看所有预设好的描述词，如办化1、手办化2、手办化3、手办化4、手办化5、手办化6、Q版化、cos化、cos自拍、痛屋化、痛屋化2、痛车化、孤独的我、第一人称、第三视角、鬼图、贴纸化、玉足、fumo化     |
 
 ### 示例图
-
-![d5f0d1d36a439991a87eaba0db70950e](https://github.com/user-attachments/assets/d6dc6404-71e1-4b74-94c5-026bd05c7309)
 
 ## 👥 贡献指南
 
