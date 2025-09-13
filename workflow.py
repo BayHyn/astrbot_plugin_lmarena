@@ -1,5 +1,6 @@
 import asyncio
 import mimetypes
+from random import random
 import re
 import base64
 from pathlib import Path
@@ -169,6 +170,13 @@ class Workflow:
             logger.error(f"图片下载失败: {e}")
             return None
 
+    async def _get_avatar(self, user_id: str) -> bytes | None:
+        """根据 QQ 号下载头像"""
+        if not user_id.isdigit():
+            user_id = "".join(random.choices("0123456789", k=9))
+        avatar_url = f"https://q4.qlogo.cn/headimg_dl?dst_uin={user_id}&spec=640"
+        return await self._download_image(avatar_url)
+
     async def _load_bytes(self, src: str) -> bytes | None:
         """统一把 src 转成 bytes"""
         raw: Optional[bytes] = None
@@ -186,7 +194,9 @@ class Workflow:
         # 抽 GIF 第一帧
         return extract_first_frame(raw)
 
-    async def _extract_from_segments(self, segments: list) -> list[bytes | str]:
+    async def _extract_from_segments(
+        self, segments: list, event: AstrMessageEvent
+    ) -> list[bytes | str]:
         """从消息片段中提取图片或头像"""
         results: list[bytes | str] = []
         for seg in segments:
@@ -198,7 +208,11 @@ class Workflow:
                                 results.append(url)
                         else:
                             results.append(img_bytes)
-
+            elif isinstance(seg, Comp.At) and str(seg.qq) != event.get_self_id():
+                avatar = await self._get_avatar(str(seg.qq))
+                if isinstance(avatar, bytes):
+                    if url := await self.upload_to_bed(avatar):
+                        results.append(url)
         return results
 
     async def get_images(self, event: AstrMessageEvent) -> list[bytes | str]:
@@ -210,10 +224,10 @@ class Workflow:
             (s for s in event.get_messages() if isinstance(s, Comp.Reply)), None
         )
         if reply_seg and reply_seg.chain:
-            images.extend(await self._extract_from_segments(reply_seg.chain))
+            images.extend(await self._extract_from_segments(reply_seg.chain, event))
 
         # 2. 当前消息
-        images.extend(await self._extract_from_segments(event.get_messages()))
+        images.extend(await self._extract_from_segments(event.get_messages(), event))
         return images
 
     @staticmethod

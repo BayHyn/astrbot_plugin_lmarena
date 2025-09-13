@@ -50,6 +50,7 @@ class LMArenaPlugin(Star):
             if ":" in item:
                 key, value = item.split(":", 1)
                 self.prompt_map[key.strip()] = value.strip()
+        self.prompt_map_keys = list(self.prompt_map.keys())
 
     @filter.event_message_type(filter.EventMessageType.ALL, priority=3)
     async def on_lmarena(self, event: AstrMessageEvent):
@@ -59,12 +60,12 @@ class LMArenaPlugin(Star):
 
         text = event.message_str
         images: list[bytes | str] = await self.workflow.get_images(event)
-        # 聊天模式
-        if text.startswith("lm ") and not images:
-            text = text[2:].strip()
-        # 生图模式
-        elif text and images:
-            text = self.prompt_map.get(text) or text
+        # 纯文本模式、图片+自定义提示词模式
+        if text.startswith(self.conf["extra_prefix"]):
+            text = text.removeprefix(self.conf["extra_prefix"]).strip()
+        # 图片+预设提示词模式
+        elif images and text and text.split()[0] in self.prompt_map_keys:
+            text = self.prompt_map.get(text.split()[0]) or ""
         else:
             return
 
@@ -91,7 +92,6 @@ class LMArenaPlugin(Star):
         else:
             yield event.plain_result("生成失败")
         event.stop_event()
-
 
     @filter.command("lm捕获", alias={"lmc"})
     async def update_id(self, event: AstrMessageEvent):
@@ -124,7 +124,6 @@ class LMArenaPlugin(Star):
         """Lmarena帮助"""
         help_text = "、".join(self.prompt_map.keys())
         yield event.plain_result(help_text)
-
 
     async def terminate(self):
         await self.workflow.terminate()

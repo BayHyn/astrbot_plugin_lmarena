@@ -30,7 +30,6 @@ class ImageServer:
                 else f"{uuid.uuid4().hex}.bin"
             )
             save_path = self.upload_dir / filename
-            self.upload_dir.mkdir(parents=True, exist_ok=True)
             with open(save_path, "wb") as f:
                 f.write(await file.read())
             return {"url": f"http://{self.host}:{self.port}/uploads/{filename}"}
