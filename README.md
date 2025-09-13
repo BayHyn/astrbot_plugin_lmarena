@@ -65,6 +65,9 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 
 ### 示例图
 
+![download](https://github.com/user-attachments/assets/ace793ec-df40-450c-ab8b-37525c1de07c)
+
+
 ## 👥 贡献指南
 
 - 🌟 Star 这个项目！（点右上角的星星，感谢支持！）
