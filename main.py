@@ -12,7 +12,7 @@ from .workflow import Workflow
 @register(
     "astrbot_plugin_lmarena",
     "Zhalslar",
-    "全面对接lmarena(模型竞技场)，免费无限调用最新模型，如调用nano-banana进行手办化",
+    "全面对接lmarena(模型竞技场)",
     "v2.0.4",
 )
 class LMArenaPlugin(Star):
@@ -59,16 +59,16 @@ class LMArenaPlugin(Star):
             return
 
         text = event.message_str
-        images: list[bytes | str] = await self.workflow.get_images(event)
+        cmd = text.split()[0].strip() if text else ""
         # 纯文本模式、图片+自定义提示词模式
-        if text.startswith(self.conf["extra_prefix"]):
-            text = text.removeprefix(self.conf["extra_prefix"]).strip()
+        if cmd == self.conf["extra_prefix"]:
+            text = text.removeprefix(cmd).strip()
         # 图片+预设提示词模式
-        elif images and text and text.split()[0] in self.prompt_map_keys:
-            text = self.prompt_map.get(text.split()[0]) or ""
+        elif cmd and cmd in self.prompt_map_keys:
+            text = self.prompt_map.get(cmd) or ""
         else:
             return
-
+        images: list[bytes | str] = await self.workflow.get_images(event)
         chat_res = await self.workflow.fetch_content(
             text=text,
             images=images,
