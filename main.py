@@ -13,7 +13,7 @@ from .workflow import Workflow
     "astrbot_plugin_lmarena",
     "Zhalslar",
     "全面对接lmarena(模型竞技场)，免费无限调用最新模型，如调用nano-banana进行手办化",
-    "v2.0.3",
+    "v2.0.4",
 )
 class LMArenaPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
