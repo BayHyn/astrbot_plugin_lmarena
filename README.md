@@ -37,14 +37,16 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 
 ### 3.插件与油猴对接
 
-- 开启/重载插件时，日志显示：[bridge.server:74]: WebSocket 端点: ws://127.0.0.1:5102/ws
-- 开启脚本刷新[LMArena.ai](https://lmarena.ai/)页面时，日志显示：✅ 油猴脚本已成功连接 WebSocket。并且[LMArena.ai](https://lmarena.ai/)页面页面标题会以 ✅ 开头。
+- 从Astrbot插件市场安装本插件（手动下载也行），启动插件时日志会显示：[bridge.server:74]: WebSocket 端点: ws://127.0.0.1:5102/ws
+- 访问竞技场[LMArena.ai](https://lmarena.ai/)，注册、登录账号。
+- 刷新[LMArena.ai](https://lmarena.ai/)页面让油猴脚本检测，等到Astrbot日志显示：✅ 油猴脚本已成功连接 WebSocket。并且[LMArena.ai](https://lmarena.ai/)页面页面标题会以 ✅ 开头，说明插件与油猴脚本对接成功。如果一直没对接上，请检查你的浏览器是否已允许运行油猴的脚本。
 
 ### 4.捕获会话ID
 
-- 在[竞技场](<https://lmarena.ai>)找到你想要的模型(比如nano_banana)并对话一次。
-- Direct_chat模式寻找nano_banana示例：点聊天栏左下角的图片图标，此时就可以页面上方看见模型列表里有nano_banana可选了。
-- 一切准备就绪后，给bot发送命令 `lm捕获`或`lmc`激活油猴脚本的捕获模式，然后点模型右上角或左下角的重试按钮，刷新目标模型从而捕获会话ID，然后就可以正常使用了
+- 在[竞技场](<https://lmarena.ai>)找到你想要的模型(比如nano_banana)，图片模型需点击聊天栏左下角的图片图标（image）才会在列表里显示，Direct_chat模式才可以选模型，battle模式靠猜。
+- 选好模型后，对话一次，直至出现Retry按钮。
+- 然后给bot发送命令 `lm捕获`或`lmc`激活油猴脚本的捕获模式。
+- 点模型的重试（Retry）按钮，刷新目标模型从而捕获会话ID，然后就可以正常使用了
 
 ## ⌨️ 使用说明
 
@@ -76,6 +78,10 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 ## 📌 注意事项
 
 - 想第一时间得到反馈的可以来作者的插件反馈群（QQ群）：460973561（不点star不给进）
+- 另外，推荐加入手办化bot集中营，里面有着各路来的手办化bot，方便交流经验、共享资源。
+<img width="1895" height="751" alt="图片" src="https://github.com/user-attachments/assets/a14e8d08-01f5-40db-9726-808bfc5bd44d" />
+
+
 
 ## 🤝 鸣谢
 
