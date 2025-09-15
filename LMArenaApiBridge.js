@@ -86,7 +86,7 @@
 
         // --- 使用从后端配置传递的会话信息 ---
         if (!session_id || !message_id) {
-            const errorMsg = "从后端收到的会话信息 (session_id 或 message_id) 为空。请先运行 `id_updater.py` 脚本进行设置。";
+            const errorMsg = "从后端收到的会话信息 (session_id 或 message_id) 为空。请先捕获会话信息";
             console.error(`[API Bridge] ${errorMsg}`);
             sendToServer(requestId, { error: errorMsg });
             sendToServer(requestId, "[DONE]");
