@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register, StarTools
@@ -13,7 +14,7 @@ from .workflow import Workflow
     "astrbot_plugin_lmarena",
     "Zhalslar",
     "全面对接lmarena(模型竞技场)",
-    "v2.0.6",
+    "v2.0.7",
 )
 class LMArenaPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -58,7 +59,7 @@ class LMArenaPlugin(Star):
 
     @filter.event_message_type(filter.EventMessageType.ALL, priority=3)
     async def on_lmarena(self, event: AstrMessageEvent):
-        """/lm+文字 | 图片+提示词"""
+        """(图片)bnn 描述词 | (图片)触发词"""
         if self.conf["prefix"] and not event.is_at_or_wake_command:
             return
 
@@ -111,17 +112,28 @@ class LMArenaPlugin(Star):
         )
         yield event.plain_result(result)
 
-    @filter.command("lm刷新", alias={"lmr"})
-    async def refresh(self, event: AstrMessageEvent):
-        """刷新lmarena网页"""
+    @filter.command("lm模型", alias={"lmm"})
+    async def lm_model(self, event: AstrMessageEvent):
+        """查看 lmarena 网页上的可用模型"""
         if not self.bridge_server:
-            yield event.plain_result("无法操作, 当前用的不是内置LM桥梁")
+            yield event.plain_result("无法操作，当前用的不是内置 LM 桥梁")
             return
-        try:
-            await self.bridge_server.refresh()
-            yield event.plain_result("已发送指令刷新lmarena网页")
-        except Exception:
-            yield event.plain_result("网页刷新失败")
+
+        # 原始字典
+        model_dict: dict[str, dict] = self.bridge_server.get_model_dict()
+
+        # 按 type 分组
+        buckets = defaultdict(list)
+        for model_name, info in model_dict.items():
+            buckets[info["type"]].append(model_name)
+
+        # 拼装输出
+        paragraphs = []
+        for tp in sorted(buckets):
+            chunk = [f"【{tp}模型】"]
+            chunk += [f"{idx}. {name}" for idx, name in enumerate(buckets[tp], start=1)]
+            paragraphs.append("\n".join(chunk))
+        yield event.plain_result("\n\n".join(paragraphs))
 
     @filter.command("lm添加", alias={"lma"})
     async def add_lm_prompt(self, event: AstrMessageEvent):

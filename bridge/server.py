@@ -8,6 +8,8 @@ from fastapi import WebSocket, WebSocketDisconnect, Request, HTTPException, Fast
 from fastapi.middleware.cors import CORSMiddleware
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from typing import Optional
+
+from .models import ModelsManager
 from .response import ResponseManager
 from .process import Process
 
@@ -101,12 +103,17 @@ class LMArenaBridgeServer:
         self.responser.callback = self.refresh
         logger.info("[LMArena Bridge] 后端已启动...")
 
+        # 模型管理器
+        self.model_mgr = ModelsManager(config)
+
     # ---------------- WS处理 ----------------
     async def websocket_endpoint(self, websocket: WebSocket):
         """处理来自油猴脚本的 WebSocket 连接。"""
         await websocket.accept()
         self.browser_ws = websocket
         logger.info("✅ 油猴脚本已成功连接 WebSocket。")
+        # 刷新模型列表
+        await self.trigger_model_update()
         try:
             while True:
                 # 等待并接收来自油猴脚本的消息
@@ -150,7 +157,16 @@ class LMArenaBridgeServer:
 
     # ---------------- main.py调用的接口 ----------------
     async def refresh(self):
+        """刷新油猴脚本页面"""
         await self.ws_send({"command": "refresh"})
+
+    async def trigger_model_update(self):
+        """让油猴发送页面源代码"""
+        await self.ws_send({"command": "send_page_source"})
+
+    def get_model_dict(self) -> dict:
+        """获取所有模型列表"""
+        return dict(self.model_mgr.model_map)
 
     async def update_id(
         self,
@@ -269,3 +285,14 @@ class LMArenaBridgeServer:
                 exc_info=True,
             )
             raise HTTPException(status_code=500, detail=str(e))
+
+    async def update_available_models_endpoint(self, request: Request):
+        """
+        接收来自油猴脚本的页面 HTML，提取并更新 available_models.json。
+        """
+        html_content = await request.body()
+        if not html_content:
+            logger.warning("模型更新请求未收到任何 HTML 内容。")
+            return
+        logger.info("收到来自油猴脚本的页面内容，开始提取可用模型...")
+        self.model_mgr.update_from_html(html_content.decode("utf-8"))
