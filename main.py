@@ -44,8 +44,12 @@ class LMArenaPlugin(Star):
             self.image_server.start()
 
         # 提示词字典
-        prompt_list = config["prompt_list"].copy()
         self.prompt_map = {}
+        self.prompt_map_keys = []
+        self._lode_prompt_map()
+
+    def _lode_prompt_map(self):
+        prompt_list = self.conf["prompt_list"].copy()
         for item in prompt_list:
             if ":" in item:
                 key, value = item.split(":", 1)
@@ -119,11 +123,44 @@ class LMArenaPlugin(Star):
         except Exception:
             yield event.plain_result("网页刷新失败")
 
+    @filter.command("lm添加", alias={"lma"})
+    async def add_lm_prompt(self, event: AstrMessageEvent):
+        """lm添加 触发词:描述词（触发词重复则覆盖）"""
+        raw = event.message_str.removeprefix("lm添加").removeprefix("lma").strip()
+        if ":" not in raw:
+            yield event.plain_result(
+                "格式错误，正确示例：\n姿势表:为这幅图创建一个姿势表，摆出各种姿势"
+            )
+            return
+
+        key, new_value = map(str.strip, raw.split(":", 1))
+
+        # 1. 先尝试覆盖
+        for idx, item in enumerate(self.conf["prompt_list"]):
+            if item.startswith(key + ":"):  # 触发词相同
+                self.conf["prompt_list"][idx] = f"{key}:{new_value}"
+                break
+        else:
+            # 2. 没找到就新增
+            self.conf["prompt_list"].append(f"{key}:{new_value}")
+
+        self.conf.save_config()
+        self._lode_prompt_map()
+        yield event.plain_result(f"已保存LM生图提示语:\n{key}:{new_value}")
+
     @filter.command("lm帮助", alias={"lmh"})
-    async def help(self, event: AstrMessageEvent):
+    async def help(self, event: AstrMessageEvent, keyword: str | None = None):
         """Lmarena帮助"""
-        help_text = "、".join(self.prompt_map.keys())
-        yield event.plain_result(help_text)
+        if not keyword:
+            msg = "可用的生图提示词：\n"
+            msg += "、".join(self.prompt_map.keys())
+            yield event.plain_result(msg)
+            return
+        prompt = self.prompt_map.get(keyword)
+        if not prompt:
+            yield event.plain_result("未找到此提示词")
+            return
+        yield event.plain_result(f"{keyword}:\n{prompt}")
 
     async def terminate(self):
         await self.workflow.terminate()

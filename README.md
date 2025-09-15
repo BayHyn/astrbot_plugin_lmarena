@@ -61,12 +61,13 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 | `(引用图片)/一段描述词`  | 将图片引用的图片按照描述词进行处理  |
 | `lm捕获` or `lmc`  | 发送命令激活油猴脚本的捕获模式, 然后请在浏览器中刷新目标模型从而捕获会话ID    |
 | `lm刷新` or `lmr` | 刷新lmarena网页    |
-| `lm帮助` or `lmh` | 查看所有预设好的描述词，如办化1、手办化2、手办化3、手办化4、手办化5、手办化6、Q版化、cos化、cos自拍、痛屋化、痛屋化2、痛车化、孤独的我、第一人称、第三视角、鬼图、贴纸化、玉足、fumo化     |
+| `lm添加 xxx:xxx` or `lmr xxx:xxx` | 添加一个生图描述词，格式为`lm添加 触发词:描述词` |
+| `lm帮助` or `lmh` | 查看所有预设好的描述词，如手办化、Q版化、孤独的我、第一人称、玉足...  |
+| `lmh xxx` | 查看某个触发词对应的的描述词，如`lmh 手办化` |
 
 ### 示例图
 
 ![download](https://github.com/user-attachments/assets/3857e6a6-76f0-42f4-8ee0-00a91473c5f8)
-
 
 ## 👥 贡献指南
 
@@ -79,9 +80,8 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 
 - 想第一时间得到反馈的可以来作者的插件反馈群（QQ群）：460973561（不点star不给进）
 - 另外，推荐加入手办化bot集中营，里面有着各路来的手办化bot，方便交流经验、共享资源。
+
 <img width="1895" height="751" alt="图片" src="https://github.com/user-attachments/assets/a14e8d08-01f5-40db-9726-808bfc5bd44d" />
-
-
 
 ## 🤝 鸣谢
 
