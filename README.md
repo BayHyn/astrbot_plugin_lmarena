@@ -38,7 +38,7 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 ### 3.插件与油猴对接
 
 - 从Astrbot插件市场安装本插件（手动下载也行），启动插件时日志会显示：[bridge.server:74]: WebSocket 端点: ws://127.0.0.1:5102/ws
-- 访问竞技场[LMArena.ai](https://lmarena.ai/)，注册、登录账号。
+- 开魔法访问竞技场[LMArena.ai](https://lmarena.ai/)，注册、登录账号。
 - 刷新[LMArena.ai](https://lmarena.ai/)页面让油猴脚本检测，等到Astrbot日志显示：✅ 油猴脚本已成功连接 WebSocket。并且[LMArena.ai](https://lmarena.ai/)页面页面标题会以 ✅ 开头，说明插件与油猴脚本对接成功。如果一直没对接上，请检查你的浏览器是否已允许运行油猴的脚本。
 
 ### 4.捕获会话ID
