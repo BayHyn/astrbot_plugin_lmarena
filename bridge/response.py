@@ -72,7 +72,7 @@ class ResponseManager:
 
             case msg if self._is_cloudflare_error(error_msg) or "cloudflare" in msg:
                 if self.callback:
-                    asyncio.create_task(self.callback(request_id))
+                    asyncio.create_task(self.callback())
                 return "检测到 Cloudflare 错误。已尝试刷新人机验证，请稍后再试。"
 
             case _:
