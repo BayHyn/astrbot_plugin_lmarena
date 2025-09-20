@@ -17,9 +17,15 @@
         "type": "bool",
         "default": false
     },
-    "bypass_sensitivity": {
+    "text_bypass": {
         "description": "绕过敏感词检测",
-        "hint": "只对文本模型有效，文生图模型切勿开启 否则会导致图片内容不符",
+        "hint": "只对文本模型有效，图片模型切勿开启，否则会导致图片内容不符；注意绕过功能效果有限",
+        "type": "bool",
+        "default": false
+    },
+    "image_bypass": {
+        "description": "绕过敏感图检测",
+        "hint": "只对图片模型有效，文本模型切勿开启，否则会导致文本内容不符；注意绕过功能效果有限",
         "type": "bool",
         "default": false
     },

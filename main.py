@@ -14,7 +14,7 @@ from .workflow import Workflow
     "astrbot_plugin_lmarena",
     "Zhalslar",
     "全面对接lmarena(模型竞技场)",
-    "v2.0.7",
+    "v2.0.8",
 )
 class LMArenaPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
