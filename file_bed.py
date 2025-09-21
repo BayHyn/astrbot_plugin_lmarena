@@ -1,13 +1,15 @@
+import asyncio
 import base64
 import shutil
 import threading
 from pathlib import Path
-import time
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import uvicorn
 from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
+
 
 
 class UploadPayload(BaseModel):
@@ -28,7 +30,6 @@ class ImageServer:
         self._thread = None
         self._cleaner_thread = None
         self._stop_cleaner = threading.Event()
-
         self.app.mount(
             "/uploads", StaticFiles(directory=self.upload_dir), name="uploads"
         )
@@ -36,7 +37,7 @@ class ImageServer:
 
     def _setup_routes(self):
         @self.app.post("/upload")
-        async def upload(payload: UploadPayload = Body(...)):
+        async def upload(request: Request, payload: UploadPayload = Body(...)):
             # 校验 API key
             if payload.api_key != self.api_key:
                 raise HTTPException(403)
@@ -53,6 +54,9 @@ class ImageServer:
             with open(save_path, "wb") as f:
                 f.write(file_bytes)
 
+            client_host = request.client.host if request.client else "unknown"
+            logger.info(f"[图床] (来自 {client_host})上传完成，已保存到: {save_path}")
+
             return {"success": True, "filename": payload.file_name}
 
     def _clear_cache(self):
@@ -65,27 +69,23 @@ class ImageServer:
             logger.error(f"[图床] 清理缓存失败: {e}")
 
     def _start_cleaner(self, interval_hours: int = 6):
-        self._stop_cleaner.clear()
-        def _loop():
-            while not self._stop_cleaner.is_set():
-                remaining = interval_hours * 3600
-                # 分段 sleep，避免 OverflowError
-                while remaining > 0 and not self._stop_cleaner.is_set():
-                    chunk = min(remaining, 24 * 3600)  # 每次最多睡 24h
-                    time.sleep(chunk)
-                    remaining -= chunk
-                if not self._stop_cleaner.is_set():
-                    self._clear_cache()
+        async def _loop():
+            try:
+                while not self._stop_cleaner.is_set():
+                    await asyncio.sleep(interval_hours * 3600)
+                    if not self._stop_cleaner.is_set():
+                        self._clear_cache()
+            except asyncio.CancelledError:
+                logger.info("[图床] 缓存清理任务已取消")
 
-        self._cleaner_thread = threading.Thread(target=_loop, daemon=True)
-        self._cleaner_thread.start()
+        self._cleaner_task = asyncio.create_task(_loop())
 
     def start(self):
         if self._server:
             return
-        import uvicorn
-
-        config = uvicorn.Config(app=self.app, host=self.host, port=self.port)
+        config = uvicorn.Config(
+            app=self.app, host=self.host, port=self.port, loop="asyncio"
+        )
         self._server = uvicorn.Server(config)
         self._thread = threading.Thread(target=self._server.run, daemon=True)
         self._thread.start()
@@ -98,10 +98,8 @@ class ImageServer:
             self._server.should_exit = True
             if self._thread and self._thread.is_alive():
                 self._thread.join(timeout=5)
-            self._server = None
-            self._thread = None
-            if self._cleaner_thread and self._cleaner_thread.is_alive():
-                self._stop_cleaner.set()
-                self._cleaner_thread.join(timeout=5)
-                self._cleaner_thread = None
-            logger.info("图床服务器已优雅关闭")
+
+        if hasattr(self, "_cleaner_task"):
+            self._stop_cleaner.set()
+            self._cleaner_task.cancel()
+        logger.info("图床服务器已优雅关闭")
