@@ -1,16 +1,23 @@
-import uuid
+import base64
 import threading
 from pathlib import Path
-from fastapi import FastAPI, File, UploadFile
+from fastapi import Body, FastAPI,  HTTPException
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
+
+class UploadPayload(BaseModel):
+    file_name: str
+    file_data: str  # data URI
+    api_key: str
 
 
 class ImageServer:
     def __init__(self, config: AstrBotConfig, upload_dir:Path):
         self.host = config["image_server"]["host"]
         self.port = config["image_server"]["port"]
+        self.api_key = config["image_server"]["api_key"]
         self.upload_dir = upload_dir
         self.app = FastAPI()
         self._server = None
@@ -23,16 +30,24 @@ class ImageServer:
 
     def _setup_routes(self):
         @self.app.post("/upload")
-        async def upload(file: UploadFile = File(...)):
-            filename = (
-                f"{uuid.uuid4().hex}{Path(file.filename).suffix}"
-                if file.filename
-                else f"{uuid.uuid4().hex}.bin"
-            )
-            save_path = self.upload_dir / filename
+        async def upload(payload: UploadPayload = Body(...)):
+            # 校验 API key
+            if payload.api_key != self.api_key:
+                raise HTTPException(403)
+
+            # 解析 base64
+            if payload.file_data.startswith("data:"):
+                base64_str = payload.file_data.split(",", 1)[1]
+            else:
+                base64_str = payload.file_data
+            file_bytes = base64.b64decode(base64_str)
+
+            # 保存文件
+            save_path = self.upload_dir / payload.file_name
             with open(save_path, "wb") as f:
-                f.write(await file.read())
-            return {"url": f"http://{self.host}:{self.port}/uploads/{filename}"}
+                f.write(file_bytes)
+
+            return {"success": True, "filename": payload.file_name}
 
     def start(self):
         if self._server:

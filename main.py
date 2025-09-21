@@ -10,12 +10,7 @@ from .bridge.server import LMArenaBridgeServer, FastAPIWrapper
 from .workflow import Workflow
 
 
-@register(
-    "astrbot_plugin_lmarena",
-    "Zhalslar",
-    "全面对接lmarena(模型竞技场)",
-    "v2.0.8",
-)
+@register("astrbot_plugin_lmarena", "Zhalslar", "...", "...")
 class LMArenaPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
