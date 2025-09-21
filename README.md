@@ -80,6 +80,7 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) LMArena插件 ✨_
 
 - 想第一时间得到反馈的可以来作者的插件反馈群（QQ群）：460973561（不点star不给进）
 - 另外，推荐加入手办化bot集中营，里面有着各路来的手办化bot，方便交流经验、共享资源。
+- nano-banana模型必须用图床上传图片，其他模型可以不用
 
 <img width="1895" height="751" alt="图片" src="https://github.com/user-attachments/assets/a14e8d08-01f5-40db-9726-808bfc5bd44d" />
 
