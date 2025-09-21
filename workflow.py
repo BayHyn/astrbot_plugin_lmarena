@@ -211,8 +211,9 @@ class Workflow:
             elif isinstance(seg, Comp.At) and str(seg.qq) != event.get_self_id():
                 avatar = await self._get_avatar(str(seg.qq))
                 if isinstance(avatar, bytes):
-                    if url := await self.upload_to_bed(avatar):
-                        results.append(url)
+                    if self.image_server_url:
+                        if url := await self.upload_to_bed(avatar):
+                            results.append(url)
         return results
 
     async def get_images(self, event: AstrMessageEvent) -> list[bytes | str]:
