@@ -104,7 +104,7 @@ class Workflow:
             self.bridge_server_url = f"http://{config['bridge_server']['host']}:{config['bridge_server']['port']}"
 
         self.image_server_url = config["image_server"]["url"]
-        if config["image_server"]["enable"]:
+        if not config["image_server"]["url"]:
             self.image_server_url = f"http://{config['image_server']['host']}:{config['image_server']['port']}"
 
         self.url_prefix = self.image_server_url.rsplit("/", 1)[0]

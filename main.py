@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 from astrbot.api.event import filter
+from astrbot.api import logger
 from astrbot.api.star import Context, Star, register, StarTools
 from astrbot.core import AstrBotConfig
 from astrbot.core.message.components import Image
@@ -35,9 +36,11 @@ class LMArenaPlugin(Star):
         self.workflow = Workflow(config)
         # 启动图床
         self.image_server = None
-        if self.conf["image_server"]["enable"]:
+        if not self.conf["image_server"]["url"]:
             self.image_server = ImageServer(config, self.file_bed_dir)
             self.image_server.start()
+        else:
+            logger.info(f"采用远程图床上传图片：{self.conf['image_server']['url']}")
 
         # 提示词字典
         self.prompt_map = {}

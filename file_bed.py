@@ -1,11 +1,14 @@
 import base64
+import shutil
 import threading
 from pathlib import Path
-from fastapi import Body, FastAPI,  HTTPException
+import time
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
+
 
 class UploadPayload(BaseModel):
     file_name: str
@@ -14,7 +17,8 @@ class UploadPayload(BaseModel):
 
 
 class ImageServer:
-    def __init__(self, config: AstrBotConfig, upload_dir:Path):
+    def __init__(self, config: AstrBotConfig, upload_dir: Path):
+        self.clear_cache_interval = config["image_server"]["clear_cache_interval"]
         self.host = config["image_server"]["host"]
         self.port = config["image_server"]["port"]
         self.api_key = config["image_server"]["api_key"]
@@ -22,6 +26,8 @@ class ImageServer:
         self.app = FastAPI()
         self._server = None
         self._thread = None
+        self._cleaner_thread = None
+        self._stop_cleaner = threading.Event()
 
         self.app.mount(
             "/uploads", StaticFiles(directory=self.upload_dir), name="uploads"
@@ -49,6 +55,31 @@ class ImageServer:
 
             return {"success": True, "filename": payload.file_name}
 
+    def _clear_cache(self):
+        try:
+            if self.upload_dir.exists():
+                shutil.rmtree(self.upload_dir)
+            self.upload_dir.mkdir(parents=True, exist_ok=True)
+            logger.info("[图床] 定时清理完成，缓存已清空")
+        except Exception as e:
+            logger.error(f"[图床] 清理缓存失败: {e}")
+
+    def _start_cleaner(self, interval_hours: int = 6):
+        self._stop_cleaner.clear()
+        def _loop():
+            while not self._stop_cleaner.is_set():
+                remaining = interval_hours * 3600
+                # 分段 sleep，避免 OverflowError
+                while remaining > 0 and not self._stop_cleaner.is_set():
+                    chunk = min(remaining, 24 * 3600)  # 每次最多睡 24h
+                    time.sleep(chunk)
+                    remaining -= chunk
+                if not self._stop_cleaner.is_set():
+                    self._clear_cache()
+
+        self._cleaner_thread = threading.Thread(target=_loop, daemon=True)
+        self._cleaner_thread.start()
+
     def start(self):
         if self._server:
             return
@@ -58,6 +89,8 @@ class ImageServer:
         self._server = uvicorn.Server(config)
         self._thread = threading.Thread(target=self._server.run, daemon=True)
         self._thread.start()
+        if self.clear_cache_interval:
+            self._start_cleaner(interval_hours=self.clear_cache_interval)
         logger.info(f"图床服务器已启动: http://{self.host}:{self.port}")
 
     def stop(self):
@@ -67,6 +100,8 @@ class ImageServer:
                 self._thread.join(timeout=5)
             self._server = None
             self._thread = None
+            if self._cleaner_thread and self._cleaner_thread.is_alive():
+                self._stop_cleaner.set()
+                self._cleaner_thread.join(timeout=5)
+                self._cleaner_thread = None
             logger.info("图床服务器已优雅关闭")
-
-
