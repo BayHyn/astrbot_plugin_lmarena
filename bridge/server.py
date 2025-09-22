@@ -71,7 +71,7 @@ class FastAPIWrapper:
             target=self._uvicorn_server.run, daemon=True
         )
         self._server_thread.start()
-        logger.info("LMArena 桥梁服务器已启动...")
+        logger.info("内置LMArena桥梁已启动!")
         logger.info(f"监听地址: {self.host}:{self.port}")
         logger.info(f"WebSocket 端点: ws://{self.host}:{self.port}/ws")
 
@@ -101,7 +101,6 @@ class LMArenaBridgeServer:
         # 响应管理器
         self.responser = ResponseManager(config)
         self.responser.callback = self.refresh
-        logger.info("[LMArena Bridge] 后端已启动...")
 
         # 模型管理器
         self.model_mgr = ModelsManager(config)

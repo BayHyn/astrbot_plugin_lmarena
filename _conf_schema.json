@@ -97,7 +97,7 @@
     },
     "image_server": {
         "description": "图床服务器配置",
-        "hint": "远程图床为空且不启用内置图床时，插件将直接以base64编码上传图片",
+        "hint": "没图床或图床无效时，插件将直接以base64编码上传图片",
         "type": "object",
         "items": {
             "url": {

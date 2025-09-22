@@ -91,7 +91,7 @@ class ImageServer:
         self._thread.start()
         if self.clear_cache_interval:
             self._start_cleaner(interval_hours=self.clear_cache_interval)
-        logger.info(f"图床服务器已启动: http://{self.host}:{self.port}")
+        logger.info(f"内置图床已启动: http://{self.host}:{self.port}")
 
     def stop(self):
         if self._server:
@@ -102,4 +102,4 @@ class ImageServer:
         if hasattr(self, "_cleaner_task"):
             self._stop_cleaner.set()
             self._cleaner_task.cancel()
-        logger.info("图床服务器已优雅关闭")
+        logger.info("内置图床已优雅关闭")

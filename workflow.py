@@ -91,27 +91,15 @@ class Workflow:
 
     headers = {"Content-Type": "application/json"}
 
-    def __init__(self, config: AstrBotConfig):
-        """
-        :param base_url: API 的 base url
-        :param model: 模型名称
-        """
+    def __init__(
+        self, config: AstrBotConfig, bridge_server_url: str, image_server_url: str | None
+    ):
         self.conf = config
-
-        # 获取桥梁服务器地址
-        self.bridge_server_url = config["bridge_server"]["url"]
-        if not self.bridge_server_url:
-            self.bridge_server_url = f"http://{config['bridge_server']['host']}:{config['bridge_server']['port']}"
-
-        self.image_server_url = config["image_server"]["url"]
-        if not config["image_server"]["url"]:
-            self.image_server_url = f"http://{config['image_server']['host']}:{config['image_server']['port']}"
-
-        self.url_prefix = self.image_server_url.rsplit("/", 1)[0]
-
+        self.bridge_server_url = bridge_server_url
+        self.image_server_url = image_server_url
         self.session = aiohttp.ClientSession()
 
-    async def upload_to_bed(self, img_bytes: bytes) -> str | None:
+    async def upload_to_bed(self, img_bytes: bytes, image_server_url: str) -> str | None:
         """
         转 base64 并上传到图床，返回可访问的 URL。
         """
@@ -132,7 +120,7 @@ class Workflow:
             }
 
             async with self.session.post(
-                url=self.image_server_url, json=payload
+                url=image_server_url, json=payload
             ) as response:
                 if response.status >= 400:
                     error_text = await response.text()
@@ -146,7 +134,8 @@ class Workflow:
                     logger.error(f"图床上传失败: {result.get('error', '未知错误')}")
                     return None
                 # 拼接 URL
-                uploaded_url = f"{self.url_prefix}/uploads/{result['filename']}"
+                url_prefix = image_server_url.rsplit("/", 1)[0]
+                uploaded_url = f"{url_prefix}/uploads/{result['filename']}"
                 logger.info(f"图片成功上传到图床: {uploaded_url}")
                 return uploaded_url
 
@@ -197,23 +186,39 @@ class Workflow:
     async def _extract_from_segments(
         self, segments: list, event: AstrMessageEvent
     ) -> list[bytes | str]:
-        """从消息片段中提取图片或头像"""
+        """从消息片段中提取图片或头像，支持图床失败回退到 base64"""
         results: list[bytes | str] = []
         for seg in segments:
+            # 处理图片
             if isinstance(seg, Comp.Image):
                 if src := seg.url or seg.file:
                     if img_bytes := await self._load_bytes(src):
                         if self.image_server_url:
-                            if url := await self.upload_to_bed(img_bytes):
+                            if url := await self.upload_to_bed(
+                                img_bytes, self.image_server_url
+                            ):
                                 results.append(url)
+                            else:
+                                logger.warning("图床上传失败，回退到 base64")
+                                results.append(img_bytes)
                         else:
                             results.append(img_bytes)
+
+            # 处理@用户头像
             elif isinstance(seg, Comp.At) and str(seg.qq) != event.get_self_id():
                 avatar = await self._get_avatar(str(seg.qq))
                 if isinstance(avatar, bytes):
                     if self.image_server_url:
-                        if url := await self.upload_to_bed(avatar):
+                        if url := await self.upload_to_bed(
+                            avatar, self.image_server_url
+                        ):
                             results.append(url)
+                        else:
+                            logger.warning("头像上传图床失败，回退到 base64")
+                            results.append(avatar)
+                    else:
+                        results.append(avatar)
+
         return results
 
     async def get_images(self, event: AstrMessageEvent) -> list[bytes | str]:
@@ -245,9 +250,7 @@ class Workflow:
             for img in images:
                 if isinstance(img, bytes):
                     compressed = await compress_image(img, 3_500_000)
-                    img_url = (
-                        f"data:image/jpeg;base64,{base64.b64encode(compressed).decode()}"
-                    )
+                    img_url = f"data:image/jpeg;base64,{base64.b64encode(compressed).decode()}"
                 elif isinstance(img, str):
                     img_url = img
                 else:

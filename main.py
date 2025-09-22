@@ -7,6 +7,7 @@ from astrbot.core import AstrBotConfig
 from astrbot.core.message.components import Image
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 from data.plugins.astrbot_plugin_lmarena.file_bed import ImageServer
+from .utils import normalize_server
 from .bridge.server import LMArenaBridgeServer, FastAPIWrapper
 from .workflow import Workflow
 
@@ -25,27 +26,41 @@ class LMArenaPlugin(Star):
 
         self.bridge_server = None
         self.api = None
-        # bridge_server_url为空时，改用本地桥梁连接油猴脚本
-        if not self.conf["bridge_server"]["url"]:
-            # 创建核心 Server
-            self.bridge_server = LMArenaBridgeServer(config)
-            # 启动 FastAPI
-            self.api = FastAPIWrapper(self.bridge_server, config)
-            self.api.start()
-        # 启动工作流
-        self.workflow = Workflow(config)
-        # 启动图床
         self.image_server = None
-        if not self.conf["image_server"]["url"]:
-            self.image_server = ImageServer(config, self.file_bed_dir)
-            self.image_server.start()
-        else:
-            logger.info(f"采用远程图床上传图片：{self.conf['image_server']['url']}")
 
         # 提示词字典
         self.prompt_map = {}
         self.prompt_map_keys = []
         self._lode_prompt_map()
+
+    async def initialize(self):
+        self.bridge_server_url = normalize_server(self.conf.get("bridge_server", {}))
+        self.image_server_url = normalize_server(self.conf.get("image_server", {}))
+
+        # 桥梁服务器(必须)
+        if self.bridge_server_url and self.conf["bridge_server"].get("url"):
+            logger.info(f"已启用外置桥梁：{self.bridge_server_url}")
+        elif self.bridge_server_url:
+            self.bridge_server = LMArenaBridgeServer(self.conf)
+            self.api = FastAPIWrapper(self.bridge_server, self.conf)
+            self.api.start()
+        else:
+            logger.error("桥梁服务器配置错误，未能启动")
+
+        # 图床服务器(非必须)
+        if self.image_server_url and self.conf["image_server"].get("url"):
+            logger.info(f"已启用远程图床：{self.image_server_url}")
+        elif self.image_server_url:
+            self.image_server = ImageServer(self.conf, self.file_bed_dir)
+            self.image_server.start()
+
+        # 工作流
+        if self.bridge_server_url:
+            self.workflow = Workflow(
+                self.conf, self.bridge_server_url, self.image_server_url
+            )
+        else:
+            logger.error("工作流未启动：bridge_server_url缺失")
 
     def _lode_prompt_map(self):
         prompt_list = self.conf["prompt_list"].copy()
